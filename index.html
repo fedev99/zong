@@ -910,7 +910,7 @@
                 btnBankText.textContent = `Apertura (${totalTurnPoints}/500)`;
               } else {
                 btnBank.disabled = false;
-                btnBank.classList.remove('opacity-40', 'cursor-not-allowed');
+                btnBank.classList.remove('opacity-50', 'cursor-not-allowed');
                 btnBankText.textContent = "Incassa";
               }
             } else {
@@ -1233,8 +1233,24 @@
         } else {
           Object.assign(GameState, data.state);
           
-          let alreadyIn = Object.values(GameState.playerIds).includes(myPlayerId);
+          let alreadyIn = false;
+          let nameExists = false;
+
+          for (let i = 1; i <= GameState.numPlayers; i++) {
+            if (GameState.playerIds[i] === myPlayerId) {
+              alreadyIn = true;
+            }
+            if (GameState.playerNames[i].toLowerCase() === name.toLowerCase()) {
+              nameExists = true;
+            }
+          }
+
           if (!alreadyIn) {
+            if (nameExists) {
+              alert("Questo nome è già preso in questa stanza! Scegline un altro.");
+              return;
+            }
+
             GameState.numPlayers++;
             GameState.playerIds[GameState.numPlayers] = myPlayerId;
             GameState.playerNames[GameState.numPlayers] = name;
