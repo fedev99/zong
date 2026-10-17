@@ -578,6 +578,7 @@
       turnAccumulatedScore: 0, 
       inheritedScore: 0,       
       securedInSubTurn: false,
+      logs: [] // Gestione centralizzata della cronologia per la sincronizzazione real-time
     };
 
     function isMyTurn() {
@@ -727,10 +728,25 @@
     const roomBadge = document.getElementById('roomBadge');
 
     function addLog(text, highlight = false, isZong = false) {
-      const p = document.createElement('p');
-      p.className = `leading-relaxed ${highlight ? 'text-amber-300 font-bold' : isZong ? 'text-red-400 font-bold' : 'text-zinc-300'}`;
-      p.innerHTML = text;
-      logContainer.prepend(p);
+      if (!GameState.logs) GameState.logs = [];
+      GameState.logs.unshift({ text, highlight, isZong });
+      if (GameState.logs.length > 30) GameState.logs.pop(); // Mantiene un limite massimo di log storici
+      renderLogs();
+    }
+
+    function renderLogs() {
+      if (!logContainer) return;
+      logContainer.innerHTML = '';
+      if (!GameState.logs || GameState.logs.length === 0) {
+        logContainer.innerHTML = '<p class="text-zinc-500 italic">Pronti. Obiettivo 10.000 punti!</p>';
+        return;
+      }
+      GameState.logs.forEach(item => {
+        const p = document.createElement('p');
+        p.className = `leading-relaxed ${item.highlight ? 'text-amber-300 font-bold' : item.isZong ? 'text-red-400 font-bold' : 'text-zinc-300'}`;
+        p.innerHTML = item.text;
+        logContainer.appendChild(p);
+      });
     }
 
     function initScoreboard() {
@@ -760,6 +776,7 @@
     }
 
     function updateUI() {
+      renderLogs(); // Assicura che i log siano sincronizzati e renderizzati correttamente ad ogni aggiornamento UI
       const totalCards = GameState.numPlayers;
       for(let i=1; i<=totalCards; i++) {
         const cardEl = document.getElementById(`cardP${i}`);
@@ -910,7 +927,7 @@
                 btnBankText.textContent = `Apertura (${totalTurnPoints}/500)`;
               } else {
                 btnBank.disabled = false;
-                btnBank.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnBank.classList.remove('opacity-40', 'cursor-not-allowed');
                 btnBankText.textContent = "Incassa";
               }
             } else {
@@ -1022,6 +1039,8 @@
       GameState.securedInSubTurn = false;
       sound.playDiceRoll();
       triggerHaptic(40);
+      updateUI();
+      await saveStateToCloud();
 
       const indicesToRoll = [];
       GameState.dice.forEach((d, idx) => {
@@ -1031,14 +1050,14 @@
         }
       });
 
+      // CORREZIONE BUG: Se tutti i dadi sono bloccati (Hot Dice non resettato), forza il reset di tutti i dadi prima del lancio
       if (indicesToRoll.length === 0) {
-        GameState.phase = 'rolled';
-        updateUI();
-        return;
+        GameState.dice.forEach((d, idx) => {
+          d.status = 'free';
+          indicesToRoll.push(idx);
+          cubeElements[idx].classList.add('is-rolling');
+        });
       }
-
-      updateUI();
-      await saveStateToCloud();
 
       statusMessageEl.textContent = "Lancio...";
 
@@ -1055,7 +1074,7 @@
 
         GameState.phase = 'rolled';
         const bankedCountNow = GameState.dice.filter(d => d.status === 'banked').length;
-        const hasScore = newlyRolledValues.length > 0 && hasAnyScoringCombination(newlyRolledValues, bankedCountNow);
+        const hasScore = hasAnyScoringCombination(newlyRolledValues, bankedCountNow);
 
         if (!hasScore) {
           await triggerZong(newlyRolledValues);
@@ -1203,7 +1222,7 @@
         { value: 1, status: 'free' }, { value: 2, status: 'free' }, { value: 3, status: 'free' },
         { value: 4, status: 'free' }, { value: 5, status: 'free' },
       ];
-      logContainer.innerHTML = '';
+      GameState.logs = [];
       addLog(`Nuova partita avviata.`);
       initScoreboard();
       updateUI();
@@ -1228,6 +1247,7 @@
           GameState.scores = { 1: 0 };
           GameState.hasEntered = { 1: false };
           GameState.activePlayer = 1;
+          GameState.logs = [{ text: "Nuova partita avviata.", highlight: false, isZong: false }];
           
           await supabaseClient.from('rooms').insert([{ code: roomCode, state: GameState }]);
         } else {
