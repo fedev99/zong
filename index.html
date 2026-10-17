@@ -1022,8 +1022,6 @@
       GameState.securedInSubTurn = false;
       sound.playDiceRoll();
       triggerHaptic(40);
-      updateUI();
-      await saveStateToCloud();
 
       const indicesToRoll = [];
       GameState.dice.forEach((d, idx) => {
@@ -1033,14 +1031,14 @@
         }
       });
 
-      // CORREZIONE BUG: Se tutti i dadi sono bloccati (Hot Dice non resettato), forza il reset di tutti i dadi prima del lancio
       if (indicesToRoll.length === 0) {
-        GameState.dice.forEach((d, idx) => {
-          d.status = 'free';
-          indicesToRoll.push(idx);
-          cubeElements[idx].classList.add('is-rolling');
-        });
+        GameState.phase = 'rolled';
+        updateUI();
+        return;
       }
+
+      updateUI();
+      await saveStateToCloud();
 
       statusMessageEl.textContent = "Lancio...";
 
@@ -1057,7 +1055,7 @@
 
         GameState.phase = 'rolled';
         const bankedCountNow = GameState.dice.filter(d => d.status === 'banked').length;
-        const hasScore = hasAnyScoringCombination(newlyRolledValues, bankedCountNow);
+        const hasScore = newlyRolledValues.length > 0 && hasAnyScoringCombination(newlyRolledValues, bankedCountNow);
 
         if (!hasScore) {
           await triggerZong(newlyRolledValues);
