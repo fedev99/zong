@@ -1065,21 +1065,19 @@
               btnRollText.textContent = "Seleziona Punti";
             }
 
-            const isSelectionValidIfAny = selectedValues.length === 0 || evalResult.isValid;
-            if (totalTurnPoints > 0 && isSelectionValidIfAny) {
-              if (!GameState.hasEntered[GameState.activePlayer] && totalTurnPoints < 500) {
-                btnBank.disabled = true;
-                btnBank.classList.add('opacity-40', 'cursor-not-allowed');
-                btnBankText.textContent = `Apertura (${totalTurnPoints}/500)`;
-              } else {
-                btnBank.disabled = false;
-                btnBank.classList.remove('opacity-40', 'cursor-not-allowed');
-                btnBankText.textContent = "Incassa";
-              }
+            // CORRETTO: Si può incassare solo se ci sono punti totali nel turno > 0, 
+            // se la selezione corrente (se presente) è valida, e se (se non ancora entrato) si raggiungono almeno 500 pt.
+            const hasValidSelectionOrNone = (selectedValues.length === 0 && GameState.turnAccumulatedScore > 0) || (selectedValues.length > 0 && evalResult.isValid);
+            const meetsEntry = GameState.hasEntered[GameState.activePlayer] || totalTurnPoints >= 500;
+
+            if (totalTurnPoints > 0 && hasValidSelectionOrNone && meetsEntry) {
+              btnBank.disabled = false;
+              btnBank.classList.remove('opacity-40', 'cursor-not-allowed');
+              btnBankText.textContent = "Incassa";
             } else {
               btnBank.disabled = true;
               btnBank.classList.add('opacity-40', 'cursor-not-allowed');
-              btnBankText.textContent = !GameState.hasEntered[GameState.activePlayer] ? `Apertura (${totalTurnPoints}/500)` : "Incassa";
+              btnBankText.textContent = (!GameState.hasEntered[GameState.activePlayer] && totalTurnPoints < 500 && totalTurnPoints > 0) ? `Apertura (${totalTurnPoints}/500)` : "Incassa";
             }
           }
         }
