@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>ZONG - Il Gioco dei Dadi Offline</title>
+  <title>ZONG - Il Gioco dei Dadi Online</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts: Inter & Outfit -->
@@ -12,6 +12,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Supabase Client JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     body {
@@ -132,9 +134,88 @@
     }
     .glow-gold { box-shadow: 0 0 25px rgba(234, 179, 8, 0.25); }
     .glow-red { box-shadow: 0 0 35px rgba(239, 68, 68, 0.45); }
+    
+    /* Animazione Pop-up Veloce Notifica */
+    @keyframes toastFadeInOut {
+      0% { opacity: 0; transform: translate(-50%, -20px) scale(0.9); }
+      15% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      85% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -20px) scale(0.9); }
+    }
+    .toast-animate {
+      animation: toastFadeInOut 2.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between overflow-x-hidden p-2 sm:p-4">
+
+  <!-- POP-UP NOTIFICA NON INVASIVO PER GLI AVVERSARI -->
+  <div id="quickToast" class="fixed top-5 left-1/2 -translate-x-1/2 z-[100] hidden pointer-events-none">
+    <div id="toastContent" class="px-4 py-2.5 rounded-2xl bg-zinc-900/95 border text-xs sm:text-sm font-bold shadow-2xl backdrop-blur-md flex items-center gap-2.5">
+      <span id="toastIcon">🔥</span>
+      <span id="toastMessage" class="text-white"></span>
+    </div>
+  </div>
+
+  <!-- MODALE LOBBY STANZA ONLINE -->
+  <div id="roomModal" class="fixed inset-0 bg-zinc-950/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center">
+      <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-amber-500 flex items-center justify-center text-zinc-950 font-black text-2xl font-display">Z</div>
+      <h2 class="text-xl font-black text-white font-display mb-1">ZONG ONLINE</h2>
+      <p class="text-xs text-zinc-400 mb-5">Inserisci il tuo nome e il codice della stanza per accedere</p>
+      
+      <div class="space-y-3 text-left">
+        <div>
+          <label class="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Il tuo Nome</label>
+          <input id="inputPlayerName" type="text" maxlength="12" placeholder="Es. Tex" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-white font-semibold text-sm focus:outline-none focus:border-amber-400" />
+        </div>
+        <div>
+          <label class="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Codice Stanza</label>
+          <input id="inputRoomCode" type="text" placeholder="Es. tavolo123" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-white font-semibold text-sm focus:outline-none focus:border-amber-400" />
+        </div>
+        <div id="containerTargetScore" class="hidden">
+          <label class="text-[10px] uppercase font-bold text-amber-400 block mb-1">Punteggio Massimo Stanza</label>
+          <input id="inputTargetScore" type="number" step="500" min="1000" value="10000" placeholder="Es. 10000" class="w-full bg-zinc-950 border border-amber-500/60 rounded-xl px-3 py-2 text-amber-300 font-semibold text-sm focus:outline-none focus:border-amber-400" />
+        </div>
+      </div>
+
+      <button id="btnJoinRoom" class="w-full mt-5 py-3.5 rounded-xl bg-amber-500 text-zinc-950 font-black text-sm font-display shadow-lg active:scale-95 transition">Entra nella Stanza</button>
+    </div>
+  </div>
+
+  <!-- MODALE SELEZIONE GIOCATORI NUOVA PARTITA -->
+  <div id="newGameModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-sm w-full text-center">
+      <h3 class="text-base font-bold text-white font-display mb-1">Seleziona Giocatori</h3>
+      <p class="text-xs text-zinc-400 mb-4">Scegli chi parteciperà alla nuova partita:</p>
+      <div id="playerSelectList" class="space-y-2 text-left mb-5 max-h-48 overflow-y-auto"></div>
+      <div class="flex gap-2">
+        <button id="btnCancelNewGame" class="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs">Annulla</button>
+        <button id="btnConfirmNewGame" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs">Avvia</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE IMPOSTA PUNTEGGIO MASSIMO STANZA -->
+  <div id="targetScoreModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-900 border border-amber-500/50 rounded-2xl p-5 max-w-xs w-full text-center shadow-2xl">
+      <div class="w-10 h-10 mx-auto mb-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center">
+        <i data-lucide="target" class="w-5 h-5"></i>
+      </div>
+      <h3 class="text-base font-bold text-white font-display mb-1">Punteggio Massimo</h3>
+      <p class="text-xs text-zinc-400 mb-4">Imposta l'obiettivo di punti per vincere la partita in questa stanza</p>
+      
+      <div class="text-left mb-4">
+        <label class="text-[10px] uppercase font-bold text-amber-400 block mb-1">Nuovo Obiettivo (pt)</label>
+        <input id="inputChangeTargetScore" type="number" step="500" min="1000" value="10000" class="w-full bg-zinc-950 border border-amber-500/60 rounded-xl px-3 py-2 text-amber-300 font-bold text-base text-center focus:outline-none focus:border-amber-400" />
+      </div>
+
+      <div class="flex gap-2">
+        <button id="btnCancelTargetScore" class="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs">Annulla</button>
+        <button id="btnSaveTargetScore" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs shadow-md">Salva</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Header -->
   <header class="w-full max-w-5xl mx-auto py-2 flex items-center justify-between border-b border-zinc-800/80">
@@ -144,28 +225,20 @@
       </div>
       <div>
         <h1 class="text-xl sm:text-2xl font-black tracking-wider text-white font-display flex items-center gap-1.5">
-          ZONG
+          ZONG <span id="roomBadge" class="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/35">Stanza: --</span>
         </h1>
       </div>
     </div>
 
     <!-- Actions -->
     <div class="flex items-center gap-1.5 sm:gap-2">
-      
       <button id="btnSound" class="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300">
         <i data-lucide="volume-2" class="w-4 h-4"></i>
       </button>
 
-      <!-- BOTTONE PER IMPOSTARE IL PUNTEGGIO MASSIMO -->
-      <button id="btnTargetScore" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 text-xs font-semibold flex items-center gap-1.5" title="Imposta Punteggio Finale">
-        <i data-lucide="target" class="w-4 h-4 text-amber-400"></i>
-        <span id="targetScoreDisplay" class="hidden sm:inline">10.000 pt</span>
-      </button>
-
-      <!-- BOTTONE TRASFORMATO IN FINESTRA CLASSIFICA RECORD TURNO -->
-      <button id="btnRecordModal" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-300 text-xs font-semibold flex items-center gap-1.5" title="Classifica Record di Turno">
-        <i data-lucide="award" class="w-4 h-4 text-amber-400"></i>
-        <span class="hidden sm:inline">Record</span>
+      <!-- Bottone Icona Punteggio Massimo Stanza (Solo Icona) -->
+      <button id="btnTargetScore" title="Punteggio Massimo Stanza: 10.000 pt" class="p-2 rounded-xl bg-zinc-900 border border-amber-500/40 text-amber-400 flex items-center justify-center hover:bg-amber-500/10 transition">
+        <i data-lucide="target" class="w-4 h-4"></i>
       </button>
 
       <button id="btnLeaderboard" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-emerald-300 text-xs font-semibold flex items-center gap-1">
@@ -176,12 +249,6 @@
       <button id="btnRules" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-purple-300 text-xs font-semibold flex items-center gap-1">
         <i data-lucide="book-open" class="w-4 h-4"></i>
         <span class="hidden sm:inline">Regole</span>
-      </button>
-
-      <!-- TAB GIOCATORI: CICLA DA 1 A 10 GIOCATORI -->
-      <button id="btnPlayers" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-blue-300 text-xs font-semibold flex items-center gap-1">
-        <i data-lucide="users" class="w-4 h-4"></i>
-        <span id="btnPlayersText">1 Gioc.</span>
       </button>
 
       <button id="btnNewGame" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-red-900/60 text-red-300 text-xs font-semibold flex items-center gap-1">
@@ -227,7 +294,7 @@
 
       <div id="statusPill" class="mb-3 sm:mb-5 px-3 py-1 rounded-full text-xs font-semibold bg-zinc-900/90 border border-zinc-700/60 text-zinc-300 flex items-center gap-2 shadow z-10">
         <i data-lucide="dices" class="w-3.5 h-3.5 text-amber-400"></i>
-        <span id="statusMessage">Premi "Lancia Dadi"</span>
+        <span id="statusMessage">Connettiti alla stanza...</span>
       </div>
 
       <!-- Dice Row -->
@@ -330,7 +397,7 @@
         <span class="text-[10px] text-zinc-500" id="roundCounter">Turno 1</span>
       </div>
       <div id="logContainer" class="h-16 overflow-y-auto space-y-0.5 text-[11px] text-zinc-300 font-mono">
-        <p class="text-zinc-500 italic" id="logInitialText">Pronti. Obiettivo 10.000 punti!</p>
+        <p class="text-zinc-500 italic">Pronti. Obiettivo 10.000 punti!</p>
       </div>
     </div>
   </main>
@@ -340,68 +407,33 @@
     ZONG • Creato da Tex Willa
   </footer>
 
-  <!-- MODAL IMPOSTA PUNTEGGIO MASSIMO -->
-  <div id="targetScoreModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-xs w-full shadow-2xl">
-      <div class="flex items-center gap-2 mb-2 text-amber-400">
-        <i data-lucide="target" class="w-5 h-5"></i>
-        <h3 class="text-base font-bold text-white font-display">Punteggio Finale</h3>
-      </div>
-      <p class="text-xs text-zinc-400 mb-3">Scegli o inserisci il punteggio necessario per vincere la partita:</p>
-      
-      <!-- Preset Buttons -->
-      <div class="grid grid-cols-2 gap-2 mb-3">
-        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="5000">5.000 pt</button>
-        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="10000">10.000 pt</button>
-        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="15000">15.000 pt</button>
-        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="20000">20.000 pt</button>
-      </div>
-
-      <input id="targetScoreInput" type="number" min="1000" step="500" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-white font-semibold text-sm focus:outline-none focus:border-amber-400 mb-4" placeholder="Valore personalizzato" />
-      <div class="flex gap-2">
-        <button id="btnCancelTargetScore" class="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs">Annulla</button>
-        <button id="btnSaveTargetScore" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs">Conferma</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL MODIFICA NOME GIOCATORE -->
-  <div id="nameModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-xs w-full shadow-2xl">
-      <div class="flex items-center gap-2 mb-2 text-amber-400">
-        <i data-lucide="pencil" class="w-4 h-4"></i>
-        <h3 class="text-base font-bold text-white font-display">Modifica Nome</h3>
-      </div>
-      <p class="text-xs text-zinc-400 mb-3" id="nameModalSubtitle">Inserisci il nome:</p>
-      <input id="playerNameInput" type="text" maxlength="12" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-white font-semibold text-sm focus:outline-none focus:border-amber-400 mb-4" />
-      <div class="flex gap-2">
-        <button id="btnCancelName" class="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs">Annulla</button>
-        <button id="btnSaveName" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs">Salva</button>
-      </div>
-    </div>
-  </div>
-
   <!-- ZONG MODAL -->
   <div id="zongModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-gradient-to-b from-red-950 via-zinc-950 to-black border-2 border-red-600 rounded-3xl p-6 max-w-xs w-full text-center glow-red zong-animate">
       <div class="w-14 h-14 mx-auto mb-2 rounded-full bg-red-600/20 border border-red-500/50 flex items-center justify-center text-red-500">
         <i data-lucide="skull" class="w-8 h-8"></i>
       </div>
-      <h2 class="text-4xl font-black text-red-500 font-display mb-1">ZONG!</h2>
-      <p class="text-xs text-zinc-300 mb-4">Nessun punto valido. Turno perso!</p>
-      <button id="btnCloseZong" class="w-full py-3 rounded-xl bg-red-600 text-white font-bold text-sm">Passa il Turno</button>
+      <h2 class="text-4xl font-black text-red-500 font-display mb-1">Hai fatto ZONG</h2>
+      <p class="text-xs text-zinc-300">Nessun punto valido. Turno perso!</p>
     </div>
   </div>
 
   <!-- WIN MODAL -->
   <div id="winModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-gradient-to-b from-amber-950 via-zinc-950 to-black border-2 border-amber-500 rounded-3xl p-6 max-w-xs w-full text-center glow-gold">
-      <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center text-amber-400">
-        <i data-lucide="trophy" class="w-8 h-8"></i>
+    <div class="bg-gradient-to-b from-amber-950 via-zinc-950 to-black border-2 border-amber-500 rounded-3xl p-6 max-w-sm w-full text-center glow-gold max-h-[85vh] flex flex-col">
+      <div class="w-14 h-14 mx-auto mb-2 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center text-amber-400">
+        <i data-lucide="trophy" class="w-7 h-7"></i>
       </div>
-      <h2 class="text-2xl font-black text-amber-400 font-display" id="winnerTitle">VITTORIA!</h2>
-      <p class="text-xs text-zinc-300 my-2" id="winnerSubtitle">Vittoria!</p>
-      <button id="btnRestartWin" class="w-full py-3 rounded-xl bg-amber-500 text-zinc-950 font-bold text-sm mt-3">Nuova Partita</button>
+      <h2 class="text-xl font-black text-amber-400 font-display" id="winnerTitle">VITTORIA!</h2>
+      <p class="text-xs text-zinc-300 my-1" id="winnerSubtitle">Vittoria!</p>
+      
+      <!-- Classifica Finale all'interno del modale di vittoria -->
+      <div class="mt-3 text-left">
+        <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">Classifica Finale</span>
+        <div id="winLeaderboardContainer" class="space-y-1.5 max-h-36 overflow-y-auto mb-3"></div>
+      </div>
+
+      <button id="btnRestartWin" class="w-full py-3 rounded-xl bg-amber-500 text-zinc-950 font-bold text-sm mt-auto">Nuova Partita</button>
     </div>
   </div>
 
@@ -429,29 +461,29 @@
   <div id="leaderboardModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-sm w-full">
       <div class="flex items-center justify-between pb-2 border-b border-zinc-800 mb-3">
-        <h3 class="text-base font-bold text-white font-display">Classifica</h3>
+        <div>
+          <h3 class="text-base font-bold text-white font-display">Classifica</h3>
+          <p id="leaderboardTargetLabel" class="text-[10px] text-amber-400 font-semibold"></p>
+        </div>
         <button id="btnCloseLeaderboard"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
       <div id="leaderboardContainer" class="space-y-2"></div>
     </div>
   </div>
 
-  <!-- RECORD TURNO MODAL (NUOVA FINESTRA CLASSIFICA RECORD) -->
-  <div id="recordModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-sm w-full shadow-2xl">
-      <div class="flex items-center justify-between pb-2 border-b border-zinc-800 mb-3">
-        <div class="flex items-center gap-2 text-amber-400">
-          <i data-lucide="trophy" class="w-5 h-5"></i>
-          <h3 class="text-base font-bold text-white font-display">Classifica Record Turni</h3>
-        </div>
-        <button id="btnCloseRecordModal" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
-      </div>
-      <p class="text-[11px] text-zinc-400 mb-3">I migliori punteggi realizzati in un singolo turno dai giocatori nella stanza.</p>
-      <div id="recordModalContainer" class="space-y-2 max-h-[60vh] overflow-y-auto"></div>
-    </div>
-  </div>
-
   <script>
+    // -------------------------------------------------------------
+    // CONFIGURAZIONE SUPABASE PER LA SALA ONLINE
+    // -------------------------------------------------------------
+    const SUPABASE_URL = 'https://ttajaifqzjpdfxvrvdnf.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0YWphaWZxempwZGZ4dnJ2ZG5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNzk1MjAsImV4cCI6MjEwNzc1NTUyMH0.VOd9PManWdsbykk7MLpvgBlrXAKmTxTOQqUV63Q1_J4';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let roomCode = null;
+    let myPlayerId = 'p_' + Math.random().toString(36).substring(2, 9);
+    let lastEventId = null;
+
+    // Fallback aptico per iOS Safari 17.4+ (non supporta navigator.vibrate):
     let _hapticLabel = null;
     let _lastIosTick = 0;
     function iosTick() {
@@ -597,16 +629,13 @@
 
     let TARGET_SCORE = 10000;
     const GameState = {
+      targetScore: 10000,
       numPlayers: 1, 
       activePlayer: 1, 
-      playerNames: { 1: "Giocatore 1", 2: "Giocatore 2", 3: "Giocatore 3", 4: "Giocatore 4", 5: "Giocatore 5", 6: "Giocatore 6", 7: "Giocatore 7", 8: "Giocatore 8", 9: "Giocatore 9", 10: "Giocatore 10" },
-      scores: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0 },
-      hasEntered: { 1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false, 9: false, 10: false },
-      
-      // Record singolo turno pulito per ciascun giocatore
-      playerTurnRecords: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0 },
-      isCleanTurn: true,
-
+      playerIds: {},   
+      playerNames: {},
+      scores: {},
+      hasEntered: {},
       round: 1,
       phase: 'ready',
       dice: [
@@ -619,9 +648,40 @@
       turnAccumulatedScore: 0, 
       inheritedScore: 0,       
       securedInSubTurn: false,
+      logs: [],
+      lastEvent: null
     };
 
-    let editingPlayerId = 1;
+    function showQuickToast(type, playerName) {
+      const toastEl = document.getElementById('quickToast');
+      const contentEl = document.getElementById('toastContent');
+      const iconEl = document.getElementById('toastIcon');
+      const msgEl = document.getElementById('toastMessage');
+
+      if (!toastEl || !contentEl || !msgEl) return;
+
+      if (type === 'zong') {
+        iconEl.textContent = '💀';
+        msgEl.textContent = `${playerName} ha fatto ZONG!`;
+        contentEl.className = "px-4 py-2.5 rounded-2xl bg-red-950/90 border border-red-500/60 text-red-200 text-xs sm:text-sm font-black shadow-2xl backdrop-blur-md flex items-center gap-2.5";
+      } else if (type === 'hotdice') {
+        iconEl.textContent = '🔥';
+        msgEl.textContent = `${playerName} ha fatto HOT DICE!`;
+        contentEl.className = "px-4 py-2.5 rounded-2xl bg-amber-950/90 border border-amber-400/60 text-amber-200 text-xs sm:text-sm font-black shadow-2xl backdrop-blur-md flex items-center gap-2.5";
+      }
+
+      toastEl.classList.remove('hidden', 'toast-animate');
+      void toastEl.offsetWidth;
+      toastEl.classList.add('toast-animate');
+
+      setTimeout(() => {
+        toastEl.classList.add('hidden');
+      }, 2800);
+    }
+
+    function isMyTurn() {
+      return GameState.playerIds[GameState.activePlayer] === myPlayerId;
+    }
 
     function getPlayerName(id) {
       return GameState.playerNames[id] || `Giocatore ${id}`;
@@ -745,28 +805,11 @@
     const btnCloseLeaderboard = document.getElementById('btnCloseLeaderboard');
     const leaderboardModal = document.getElementById('leaderboardModal');
     const leaderboardContainer = document.getElementById('leaderboardContainer');
-    
-    // Riferimenti per la nuova Modale Classifica Record Turno
-    const btnRecordModal = document.getElementById('btnRecordModal');
-    const recordModal = document.getElementById('recordModal');
-    const btnCloseRecordModal = document.getElementById('btnCloseRecordModal');
-    const recordModalContainer = document.getElementById('recordModalContainer');
-
-    // Riferimenti per la Modale Target Score
-    const btnTargetScore = document.getElementById('btnTargetScore');
-    const targetScoreDisplay = document.getElementById('targetScoreDisplay');
-    const targetScoreModal = document.getElementById('targetScoreModal');
-    const targetScoreInput = document.getElementById('targetScoreInput');
-    const btnSaveTargetScore = document.getElementById('btnSaveTargetScore');
-    const btnCancelTargetScore = document.getElementById('btnCancelTargetScore');
-    const logInitialText = document.getElementById('logInitialText');
-
+    const leaderboardTargetLabel = document.getElementById('leaderboardTargetLabel');
     const zongModal = document.getElementById('zongModal');
-    const btnCloseZong = document.getElementById('btnCloseZong');
     const winModal = document.getElementById('winModal');
+    const winLeaderboardContainer = document.getElementById('winLeaderboardContainer');
     const btnRestartWin = document.getElementById('btnRestartWin');
-    const btnPlayers = document.getElementById('btnPlayers');
-    const btnPlayersText = document.getElementById('btnPlayersText');
     const btnSplit5s = document.getElementById('btnSplit5s');
     const playersContainer = document.getElementById('playersContainer');
     const turnScoreTotalEl = document.getElementById('turnScoreTotal');
@@ -777,59 +820,68 @@
     const logContainer = document.getElementById('logContainer');
     const roundCounterEl = document.getElementById('roundCounter');
 
-    // Modale Modifica Nome
-    const nameModal = document.getElementById('nameModal');
-    const playerNameInput = document.getElementById('playerNameInput');
-    const btnSaveName = document.getElementById('btnSaveName');
-    const btnCancelName = document.getElementById('btnCancelName');
-    const nameModalSubtitle = document.getElementById('nameModalSubtitle');
+    const roomModal = document.getElementById('roomModal');
+    const inputPlayerName = document.getElementById('inputPlayerName');
+    const inputRoomCode = document.getElementById('inputRoomCode');
+    const btnJoinRoom = document.getElementById('btnJoinRoom');
+    const roomBadge = document.getElementById('roomBadge');
+    const containerTargetScore = document.getElementById('containerTargetScore');
+    const inputTargetScore = document.getElementById('inputTargetScore');
+    const newGameModal = document.getElementById('newGameModal');
+    const playerSelectList = document.getElementById('playerSelectList');
+    const btnCancelNewGame = document.getElementById('btnCancelNewGame');
+    const btnConfirmNewGame = document.getElementById('btnConfirmNewGame');
 
-    function openNameModal(playerId) {
-      editingPlayerId = playerId;
-      nameModalSubtitle.textContent = `Nuovo nome per Giocatore ${playerId}:`;
-      playerNameInput.value = GameState.playerNames[playerId] || `Giocatore ${playerId}`;
-      nameModal.classList.remove('hidden');
-      setTimeout(() => playerNameInput.focus(), 100);
+    const btnTargetScore = document.getElementById('btnTargetScore');
+    const targetScoreModal = document.getElementById('targetScoreModal');
+    const inputChangeTargetScore = document.getElementById('inputChangeTargetScore');
+    const btnCancelTargetScore = document.getElementById('btnCancelTargetScore');
+    const btnSaveTargetScore = document.getElementById('btnSaveTargetScore');
+
+    function checkRoomExists(code) {
+      return supabaseClient.from('rooms').select('*').eq('code', code).maybeSingle();
     }
 
-    function savePlayerName() {
-      const val = playerNameInput.value.trim();
-      if (val) {
-        GameState.playerNames[editingPlayerId] = val;
-        try { localStorage.setItem('zong_player_names', JSON.stringify(GameState.playerNames)); } catch(e) {}
-        nameModal.classList.add('hidden');
-        updateUI();
-      }
-    }
-
-    function openTargetScoreModal() {
-      targetScoreInput.value = TARGET_SCORE;
-      targetScoreModal.classList.remove('hidden');
-      setTimeout(() => targetScoreInput.focus(), 100);
-    }
-
-    function saveTargetScore(newScore) {
-      const parsed = parseInt(newScore, 10);
-      if (!isNaN(parsed) && parsed >= 1000) {
-        TARGET_SCORE = parsed;
-        try { localStorage.setItem('zong_target_score', TARGET_SCORE.toString()); } catch(e) {}
-        targetScoreModal.classList.add('hidden');
-        if (targetScoreDisplay) {
-          targetScoreDisplay.textContent = `${TARGET_SCORE.toLocaleString('it-IT')} pt`;
+    if (inputRoomCode) {
+      inputRoomCode.addEventListener('input', async () => {
+        const code = inputRoomCode.value.trim();
+        if (!code) {
+          containerTargetScore.classList.add('hidden');
+          return;
         }
-        if (logInitialText) {
-          logInitialText.textContent = `Pronti. Obiettivo ${TARGET_SCORE.toLocaleString('it-IT')} punti!`;
+        try {
+          const { data } = await checkRoomExists(code);
+          if (!data) {
+            containerTargetScore.classList.remove('hidden');
+          } else {
+            containerTargetScore.classList.add('hidden');
+          }
+        } catch(e) {
+          containerTargetScore.classList.add('hidden');
         }
-        addLog(`🎯 Punteggio finale impostato a ${TARGET_SCORE.toLocaleString('it-IT')} pt`, true);
-        updateUI();
-      }
+      });
     }
 
     function addLog(text, highlight = false, isZong = false) {
-      const p = document.createElement('p');
-      p.className = `leading-relaxed ${highlight ? 'text-amber-300 font-bold' : isZong ? 'text-red-400 font-bold' : 'text-zinc-300'}`;
-      p.innerHTML = text;
-      logContainer.prepend(p);
+      if (!GameState.logs) GameState.logs = [];
+      GameState.logs.unshift({ text, highlight, isZong });
+      if (GameState.logs.length > 30) GameState.logs.pop();
+      renderLogs();
+    }
+
+    function renderLogs() {
+      if (!logContainer) return;
+      logContainer.innerHTML = '';
+      if (!GameState.logs || GameState.logs.length === 0) {
+        logContainer.innerHTML = `<p class="text-zinc-500 italic">Pronti. Obiettivo ${(GameState.targetScore || TARGET_SCORE).toLocaleString('it-IT')} punti!</p>`;
+        return;
+      }
+      GameState.logs.forEach(item => {
+        const p = document.createElement('p');
+        p.className = `leading-relaxed ${item.highlight ? 'text-amber-300 font-bold' : item.isZong ? 'text-red-400 font-bold' : 'text-zinc-300'}`;
+        p.innerHTML = item.text;
+        logContainer.appendChild(p);
+      });
     }
 
     function initScoreboard() {
@@ -837,60 +889,62 @@
       playersContainer.innerHTML = '';
       const totalCards = GameState.numPlayers;
       for(let i=1; i<=totalCards; i++) {
+        if (!GameState.scores[i]) GameState.scores[i] = 0;
         const card = document.createElement('div');
         card.id = `cardP${i}`;
-        const barColor = i === 1 ? 'bg-amber-400' : (i === 2 ? 'bg-blue-500' : (i === 3 ? 'bg-emerald-500' : (i === 4 ? 'bg-purple-500' : (i === 5 ? 'bg-rose-500' : (i === 6 ? 'bg-cyan-500' : (i === 7 ? 'bg-orange-500' : (i === 8 ? 'bg-indigo-500' : (i === 9 ? 'bg-teal-500' : 'bg-pink-500'))))))));
+        const barColor = i === 1 ? 'bg-amber-400' : (i === 2 ? 'bg-blue-500' : (i === 3 ? 'bg-emerald-500' : (i === 4 ? 'bg-purple-500' : 'bg-rose-500')));
         
         card.innerHTML = `
           <div class="flex items-center justify-between">
-            <button type="button" class="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-left hover:text-amber-300 transition overflow-hidden text-ellipsis whitespace-nowrap" id="btnNameP${i}">
-              <span id="labelP${i}" class="truncate max-w-[85px]"></span>
-              <i data-lucide="pencil" class="w-2.5 h-2.5 text-zinc-500 shrink-0"></i>
-            </button>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-left truncate max-w-[95px]" id="labelP${i}"></span>
           </div>
           <div class="flex items-baseline justify-between mt-1">
             <span class="text-lg sm:text-xl font-extrabold text-white font-display" id="scoreP${i}">0</span>
-            <span class="text-[9px] text-amber-400/90 font-semibold" id="recP${i}" title="Record Turno Singolo Pulito">🥇 0 pt</span>
+            <span class="text-[9px] text-zinc-400" id="subP${i}">pt</span>
           </div>
           <div class="w-full bg-zinc-800 rounded-full h-1 mt-1 overflow-hidden">
             <div id="barP${i}" class="${barColor} h-full rounded-full transition-all duration-300" style="width: 0%"></div>
           </div>
         `;
         playersContainer.appendChild(card);
-        card.querySelector(`#btnNameP${i}`).addEventListener('click', () => openNameModal(i));
       }
     }
 
     function updateUI() {
+      TARGET_SCORE = GameState.targetScore || TARGET_SCORE;
+      if (btnTargetScore) {
+        btnTargetScore.title = `Punteggio Massimo Stanza: ${TARGET_SCORE.toLocaleString('it-IT')} pt`;
+      }
+      renderLogs();
       const totalCards = GameState.numPlayers;
       for(let i=1; i<=totalCards; i++) {
         const cardEl = document.getElementById(`cardP${i}`);
         const labelEl = document.getElementById(`labelP${i}`);
         const scoreEl = document.getElementById(`scoreP${i}`);
         const barEl = document.getElementById(`barP${i}`);
-        const recEl = document.getElementById(`recP${i}`);
+        const subEl = document.getElementById(`subP${i}`);
         if(!cardEl) continue;
 
-        let currentScore = GameState.scores[i];
-        labelEl.innerHTML = (GameState.activePlayer === i ? '● ' : '') + getPlayerName(i);
-        labelEl.className = GameState.activePlayer === i ? "text-[10px] font-bold uppercase text-amber-400" : "text-[10px] font-bold uppercase text-zinc-400";
+        let currentScore = GameState.scores[i] || 0;
+        let isMe = GameState.playerIds[i] === myPlayerId;
+        labelEl.innerHTML = (GameState.activePlayer === i ? '● ' : '') + getPlayerName(i) + (isMe ? ' (Tu)' : '');
+        labelEl.className = GameState.activePlayer === i ? "text-[10px] font-bold uppercase text-amber-400 truncate" : "text-[10px] font-bold uppercase text-zinc-400 truncate";
 
-        scoreEl.textContent = currentScore;
-
-        if (recEl) {
-          recEl.textContent = `🏆 ${GameState.playerTurnRecords[i] || 0} pt`;
+        if (!GameState.hasEntered[i]) {
+            subEl.innerHTML = '🔒 500pt';
+            subEl.className = "text-[9px] text-red-400/80 font-semibold";
+        } else {
+            subEl.textContent = "pt";
+            subEl.className = "text-[9px] text-zinc-400";
         }
 
+        scoreEl.textContent = currentScore;
         barEl.style.width = Math.min(100, (currentScore / TARGET_SCORE) * 100) + '%';
         cardEl.className = "relative p-2 rounded-xl border transition-all " + 
           (GameState.activePlayer === i ? "bg-zinc-900 border-amber-500/80 scale-[1.02] shadow" : "bg-zinc-900/40 border-zinc-800 opacity-60");
       }
 
-      if (btnPlayersText) btnPlayersText.textContent = GameState.numPlayers === 1 ? "1 Gioc." : `${GameState.numPlayers} Gioc.`;
-      if (targetScoreDisplay) targetScoreDisplay.textContent = `${TARGET_SCORE.toLocaleString('it-IT')} pt`;
-
       renderLeaderboard();
-      renderRecordModalList();
 
       const selectedIndices = [];
       const selectedValues = [];
@@ -909,7 +963,7 @@
 
       const evalResult = evaluateSelection(selectedValues);
       const counts = getCounts(selectedValues);
-      if (counts[5] === 2 && GameState.phase === 'rolled' && selectedValues.length === 2) {
+      if (counts[5] === 2 && GameState.phase === 'rolled' && selectedValues.length === 2 && isMyTurn()) {
         specialActions.classList.remove('hidden');
       } else {
         specialActions.classList.add('hidden');
@@ -930,7 +984,7 @@
         }
       } else {
         pendingSelectionBadge.classList.add('hidden');
-        selectionPillEl.textContent = GameState.phase === 'rolled' ? 'Tocca i dadi per selezionarli' : '';
+        selectionPillEl.textContent = GameState.phase === 'rolled' ? (isMyTurn() ? 'Tocca i dadi per selezionarli' : 'In attesa della mossa...') : '';
         selectionPillEl.className = 'mt-3 text-xs font-normal text-zinc-400 z-10';
       }
 
@@ -954,67 +1008,79 @@
         entryOverlay.classList.remove('flex');
       }
 
+      const turnAllowed = isMyTurn();
+
       if (GameState.phase === 'inherit_choice') {
         actionButtons.classList.add('hidden');
         inheritButtons.classList.remove('hidden');
         inheritButtons.classList.add('flex');
         let totalFree = GameState.dice.filter(d => d.status === 'free' || d.status === 'forced_free').length;
         btnInheritText.textContent = `Eredita ${GameState.inheritedScore} pt (${totalFree} dadi)`;
+        
+        btnInherit.disabled = !turnAllowed;
+        btnResetRoll.disabled = !turnAllowed;
+        if (!turnAllowed) {
+          btnInherit.classList.add('opacity-50', 'cursor-not-allowed');
+          btnResetRoll.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+          btnInherit.classList.remove('opacity-50', 'cursor-not-allowed');
+          btnResetRoll.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
       } else {
         inheritButtons.classList.add('hidden');
         inheritButtons.classList.remove('flex');
         actionButtons.classList.remove('hidden');
         actionButtons.classList.add('flex');
 
-        if (GameState.phase === 'ready') {
-          btnRoll.disabled = false;
-          btnRoll.classList.remove('opacity-50', 'cursor-not-allowed');
-          btnRollText.textContent = "Lancia i 5 Dadi";
-          btnBank.disabled = true;
-          btnBank.classList.add('opacity-40', 'cursor-not-allowed');
-          btnBank.classList.remove('shadow-lg', 'shadow-emerald-900/50', 'hover:brightness-110', 'active:scale-95');
-          btnBankText.textContent = "Incassa";
-        } else if (GameState.phase === 'rolling') {
+        if (!turnAllowed) {
           btnRoll.disabled = true;
           btnRoll.classList.add('opacity-50', 'cursor-not-allowed');
-          btnRollText.textContent = "Lancio...";
+          btnRollText.textContent = `Turno di ${getPlayerName(GameState.activePlayer)}`;
           btnBank.disabled = true;
           btnBank.classList.add('opacity-40', 'cursor-not-allowed');
-          btnBank.classList.remove('shadow-lg', 'shadow-emerald-900/50', 'hover:brightness-110', 'active:scale-95');
-          btnBankText.textContent = "Incassa";
-        } else if (GameState.phase === 'rolled') {
-          const canProceed = (evalResult.isValid && evalResult.score > 0) || evalResult.isMagicSix || GameState.securedInSubTurn;
-          const remainingToRoll = freeCount + forcedFreeCount;
-          
-          if (canProceed) {
+        } else {
+          if (GameState.phase === 'ready') {
             btnRoll.disabled = false;
             btnRoll.classList.remove('opacity-50', 'cursor-not-allowed');
-            btnRollText.textContent = remainingToRoll === 0 ? "HOT DICE! Rilancia 5 Dadi" : `Rilancia (${remainingToRoll})`;
-          } else {
-            btnRoll.disabled = true;
-            btnRoll.classList.add('opacity-50', 'cursor-not-allowed');
-            btnRollText.textContent = "Seleziona Punti";
-          }
-
-          // CORRETTO: Abilita ed evidenzia il bottone Incassa se il totale turni o la selezione corrente consentono l'incasso valido (con controllo soglia d'apertura)
-          const canBankCurrentSelection = selectedValues.length > 0 ? evalResult.isValid : true;
-          if (totalTurnPoints > 0 && canBankCurrentSelection) {
-            if (!GameState.hasEntered[GameState.activePlayer] && totalTurnPoints < 500) {
-              btnBank.disabled = true;
-              btnBank.classList.add('opacity-40', 'cursor-not-allowed');
-              btnBank.classList.remove('shadow-lg', 'shadow-emerald-900/50', 'hover:brightness-110', 'active:scale-95');
-              btnBankText.textContent = `Apertura (${totalTurnPoints}/500)`;
-            } else {
-              btnBank.disabled = false;
-              btnBank.classList.remove('opacity-40', 'cursor-not-allowed', 'opacity-50');
-              btnBank.classList.add('shadow-lg', 'shadow-emerald-900/50', 'hover:brightness-110', 'active:scale-95');
-              btnBankText.textContent = "Incassa";
-            }
-          } else {
+            btnRollText.textContent = "Lancia i 5 Dadi";
             btnBank.disabled = true;
             btnBank.classList.add('opacity-40', 'cursor-not-allowed');
-            btnBank.classList.remove('shadow-lg', 'shadow-emerald-900/50', 'hover:brightness-110', 'active:scale-95');
-            btnBankText.textContent = "Incassa";
+          } else if (GameState.phase === 'rolling') {
+            btnRoll.disabled = true;
+            btnRoll.classList.add('opacity-50', 'cursor-not-allowed');
+            btnRollText.textContent = "Lancio...";
+            btnBank.disabled = true;
+            btnBank.classList.add('opacity-40', 'cursor-not-allowed');
+          } else if (GameState.phase === 'rolled') {
+            const canProceed = (evalResult.isValid && evalResult.score > 0) || evalResult.isMagicSix || GameState.securedInSubTurn;
+            const remainingToRoll = freeCount + forcedFreeCount;
+            
+            if (canProceed) {
+              btnRoll.disabled = false;
+              btnRoll.classList.remove('opacity-50', 'cursor-not-allowed');
+              btnRollText.textContent = remainingToRoll === 0 ? "HOT DICE! Rilancia 5 Dadi" : `Rilancia (${remainingToRoll})`;
+            } else {
+              btnRoll.disabled = true;
+              btnRoll.classList.add('opacity-50', 'cursor-not-allowed');
+              btnRollText.textContent = "Seleziona Punti";
+            }
+
+            const isSelectionValidIfAny = selectedValues.length === 0 || evalResult.isValid;
+            if (totalTurnPoints > 0 && isSelectionValidIfAny) {
+              if (!GameState.hasEntered[GameState.activePlayer] && totalTurnPoints < 500) {
+                btnBank.disabled = true;
+                btnBank.classList.add('opacity-40', 'cursor-not-allowed');
+                btnBankText.textContent = `Apertura (${totalTurnPoints}/500)`;
+              } else {
+                btnBank.disabled = false;
+                btnBank.classList.remove('opacity-40', 'cursor-not-allowed');
+                btnBankText.textContent = "Incassa";
+              }
+            } else {
+              btnBank.disabled = true;
+              btnBank.classList.add('opacity-40', 'cursor-not-allowed');
+              btnBankText.textContent = !GameState.hasEntered[GameState.activePlayer] ? `Apertura (${totalTurnPoints}/500)` : "Incassa";
+            }
           }
         }
       }
@@ -1039,18 +1105,23 @@
           sub.textContent = 'In gioco';
           sub.className = 'dice-sub text-[9px] text-center font-bold text-zinc-500 mt-1 uppercase';
         }
+        applyCubeRotation(cubeElements[idx], d.value);
       });
 
       roundCounterEl.textContent = `Turno ${GameState.round} • ${getPlayerName(GameState.activePlayer)}`;
+      statusMessageEl.textContent = turnAllowed ? "È il tuo turno!" : `Turno di ${getPlayerName(GameState.activePlayer)}`;
       if (window.lucide) lucide.createIcons();
     }
 
     function renderLeaderboard() {
       if (!leaderboardContainer) return;
+      if (leaderboardTargetLabel) {
+        leaderboardTargetLabel.textContent = `Obiettivo Stanza: ${(GameState.targetScore || TARGET_SCORE).toLocaleString('it-IT')} pt`;
+      }
       leaderboardContainer.innerHTML = '';
       const list = [];
       for (let i = 1; i <= GameState.numPlayers; i++) {
-        list.push({ id: i, score: GameState.scores[i], isActive: GameState.activePlayer === i });
+        list.push({ id: i, score: GameState.scores[i] || 0, isActive: GameState.activePlayer === i });
       }
       list.sort((a, b) => b.score - a.score);
 
@@ -1068,36 +1139,18 @@
       });
     }
 
-    function renderRecordModalList() {
-      if (!recordModalContainer) return;
-      recordModalContainer.innerHTML = '';
-      const list = [];
-      for (let i = 1; i <= GameState.numPlayers; i++) {
-        list.push({ id: i, record: GameState.playerTurnRecords[i] || 0 });
-      }
-      list.sort((a, b) => b.record - a.record);
-
-      list.forEach((p, idx) => {
-        const row = document.createElement('div');
-        row.className = `flex items-center justify-between p-2.5 rounded-xl border bg-zinc-950 border-zinc-800`;
-        row.innerHTML = `
-          <div class="flex items-center gap-2">
-            <span class="w-5 h-5 rounded-full flex items-center justify-center bg-zinc-800 text-xs font-bold text-amber-400">${idx + 1}</span>
-            <span class="text-xs font-bold text-zinc-200">${getPlayerName(p.id)}</span>
-          </div>
-          <span class="text-sm font-black text-amber-300">🏆 ${p.record} pt</span>
-        `;
-        recordModalContainer.appendChild(row);
-      });
-    }
-
     function applyCubeRotation(cubeEl, faceNumber) {
       const rot = faceRotations[faceNumber] || { x: 0, y: 0 };
       cubeEl.style.transform = `rotateX(${rot.x}deg) rotateY(${rot.y}deg)`;
     }
 
-    function rollDice() {
-      if (GameState.phase === 'rolling') return;
+    async function saveStateToCloud() {
+      if (!roomCode) return;
+      await supabaseClient.from('rooms').update({ state: GameState }).eq('code', roomCode);
+    }
+
+    async function rollDice() {
+      if (!isMyTurn() || GameState.phase === 'rolling') return;
 
       if (GameState.phase === 'rolled') {
         const selectedIndices = [];
@@ -1125,6 +1178,7 @@
           sound.playVictory();
           triggerHaptic(80);
           addLog(`🔥 HOT DICE! Rilancia tutti i 5 dadi!`, true);
+          GameState.lastEvent = { id: Math.random(), type: 'hotdice', player: getPlayerName(GameState.activePlayer) };
           GameState.dice.forEach(d => d.status = 'free');
         }
       }
@@ -1134,6 +1188,7 @@
       sound.playDiceRoll();
       triggerHaptic(40);
       updateUI();
+      await saveStateToCloud();
 
       const indicesToRoll = [];
       GameState.dice.forEach((d, idx) => {
@@ -1153,7 +1208,7 @@
 
       statusMessageEl.textContent = "Lancio...";
 
-      setTimeout(() => {
+      setTimeout(async () => {
         const newlyRolledValues = [];
         indicesToRoll.forEach(idx => {
           const val = Math.floor(Math.random() * 6) + 1;
@@ -1169,25 +1224,35 @@
         const hasScore = hasAnyScoringCombination(newlyRolledValues, bankedCountNow);
 
         if (!hasScore) {
-          triggerZong(newlyRolledValues);
+          await triggerZong(newlyRolledValues);
         } else {
           statusMessageEl.textContent = `Usciti: [ ${newlyRolledValues.join(', ')} ]`;
           addLog(`Lancio: [ ${newlyRolledValues.join('-')} ]`);
           updateUI();
+          await saveStateToCloud();
         }
       }, 700);
     }
 
-    function triggerZong(rolledValues) {
+    async function triggerZong(rolledValues) {
       sound.playZong();
       triggerHaptic(250);
       GameState.turnAccumulatedScore = 0;
-      GameState.isCleanTurn = false;
       addLog(`💥 ZONG! [ ${rolledValues.join('-')} ]`, false, true);
+      GameState.lastEvent = { id: Math.random(), type: 'zong', player: getPlayerName(GameState.activePlayer) };
       zongModal.classList.remove('hidden');
+      await saveStateToCloud();
+
+      setTimeout(async () => {
+        zongModal.classList.add('hidden');
+        if (isMyTurn()) {
+          await endTurn();
+        }
+      }, 1500);
     }
 
-    function endTurn() {
+    async function endTurn() {
+      zongModal.classList.add('hidden');
       GameState.turnAccumulatedScore = 0;
       GameState.inheritedScore = 0;
       GameState.dice.forEach(d => d.status = 'free');
@@ -1197,14 +1262,13 @@
         GameState.activePlayer = 1;
         GameState.round++;
       }
-      GameState.isCleanTurn = true;
       GameState.phase = 'ready';
-      statusMessageEl.textContent = `Turno di ${getPlayerName(GameState.activePlayer)}`;
       updateUI();
+      await saveStateToCloud();
     }
 
-    function bankPoints() {
-      if (GameState.phase !== 'rolled') return;
+    async function bankPoints() {
+      if (!isMyTurn() || GameState.phase !== 'rolled') return;
 
       const selectedValues = [];
       GameState.dice.forEach((d) => {
@@ -1231,24 +1295,9 @@
       triggerHaptic(60);
       addLog(`🏦 ${getPlayerName(GameState.activePlayer)} incassa ${finalTurnTotal} pt!`, true);
 
-      if (GameState.isCleanTurn) {
-        const currentRecord = GameState.playerTurnRecords[GameState.activePlayer] || 0;
-        if (finalTurnTotal > currentRecord) {
-          GameState.playerTurnRecords[GameState.activePlayer] = finalTurnTotal;
-          try {
-            localStorage.setItem('zong_player_turn_records', JSON.stringify(GameState.playerTurnRecords));
-          } catch(e) {}
-          addLog(`🔥 NUOVO RECORD DI TURNO per ${getPlayerName(GameState.activePlayer)}: ${finalTurnTotal} pt!`, true);
-        }
-      }
-
       if (GameState.scores[GameState.activePlayer] >= TARGET_SCORE) {
         triggerVictory(GameState.activePlayer, GameState.scores[GameState.activePlayer]);
-        return;
-      }
-
-      if (GameState.numPlayers === 1) {
-        endTurn();
+        await saveStateToCloud();
         return;
       }
 
@@ -1264,21 +1313,77 @@
         GameState.round++;
       }
 
-      GameState.isCleanTurn = false;
       GameState.phase = 'inherit_choice';
       updateUI();
+      await saveStateToCloud();
     }
 
-    function triggerVictory(player, finalScore) {
+    async function triggerVictory(player, finalScore) {
       sound.playVictory();
       triggerHaptic([100, 50, 100, 50, 200]);
-      document.getElementById('winnerTitle').textContent = `VITTORIA!`;
-      document.getElementById('winnerSubtitle').textContent = `${getPlayerName(player)} ha trionfato raggiungendo ${finalScore} punti in ${GameState.round} turni!`;
+      
+      const list = [];
+      for (let i = 1; i <= GameState.numPlayers; i++) {
+        list.push({ id: i, score: GameState.scores[i] || 0 });
+      }
+      list.sort((a, b) => b.score - a.score);
+
+      let myLocalIndex = -1;
+      for (let i = 1; i <= GameState.numPlayers; i++) {
+        if (GameState.playerIds[i] === myPlayerId) {
+          myLocalIndex = i;
+          break;
+        }
+      }
+
+      let myRank = 1;
+      list.forEach((p, idx) => {
+        if (p.id === myLocalIndex) {
+          myRank = idx + 1;
+        }
+      });
+
+      let titleText = "VITTORIA!";
+      let subtitleText = `${getPlayerName(player)} ha trionfato con ${finalScore} punti!`;
+
+      if (myLocalIndex !== -1) {
+        if (myRank === 1) {
+          titleText = "HAI VINTO!";
+          subtitleText = `Complimenti, sei arrivato 1° con ${finalScore} punti!`;
+        } else if (myRank === 2) {
+          titleText = "SEI ARRIVATO SECONDO!";
+          subtitleText = `Ottima partita! Secondo posto conquistato.`;
+        } else {
+          titleText = `SEI ARRIVATO ${myRank}°!`;
+          subtitleText = `Hai concluso la partita in ${myRank}° posizione.`;
+        }
+      }
+
+      document.getElementById('winnerTitle').textContent = titleText;
+      document.getElementById('winnerSubtitle').textContent = subtitleText;
+
+      if (winLeaderboardContainer) {
+        winLeaderboardContainer.innerHTML = '';
+        list.forEach((p, idx) => {
+          const row = document.createElement('div');
+          const isMe = GameState.playerIds[p.id] === myPlayerId;
+          row.className = `flex items-center justify-between p-2 rounded-xl border ${isMe ? 'bg-amber-500/10 border-amber-500/50' : 'bg-zinc-950 border-zinc-800'}`;
+          row.innerHTML = `
+            <div class="flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full flex items-center justify-center bg-zinc-800 text-xs font-bold">${idx + 1}</span>
+              <span class="text-xs font-bold ${isMe ? 'text-amber-400' : 'text-zinc-200'}">${getPlayerName(p.id)} ${isMe ? '(Tu)' : ''}</span>
+            </div>
+            <span class="text-xs font-black text-white">${p.score} pt</span>
+          `;
+          winLeaderboardContainer.appendChild(row);
+        });
+      }
+
       winModal.classList.remove('hidden');
     }
 
-    function onDiceClick(index) {
-      if (GameState.phase !== 'rolled') return;
+    async function onDiceClick(index) {
+      if (!isMyTurn() || GameState.phase !== 'rolled') return;
       const d = GameState.dice[index];
       if (d.status === 'banked' || d.status === 'forced_free') return; 
 
@@ -1286,10 +1391,11 @@
       triggerHaptic(20);
       d.status = d.status === 'free' ? 'selected' : 'free';
       updateUI();
+      await saveStateToCloud();
     }
 
-    function processSplitFives() {
-      if (GameState.phase !== 'rolled') return;
+    async function processSplitFives() {
+      if (!isMyTurn() || GameState.phase !== 'rolled') return;
       let firstFound = false;
       GameState.dice.forEach(d => {
         if (d.status === 'selected' && d.value === 5) {
@@ -1310,104 +1416,260 @@
         addLog(`✂️ ${getPlayerName(GameState.activePlayer)} unisce due 5 (+100 pt)`, true);
         GameState.dice.forEach(d => { if (d.status === 'selected') d.status = 'free'; });
         updateUI();
+        await saveStateToCloud();
       }
     }
 
-    function startNewGame() {
-      GameState.scores = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0 };
-      GameState.hasEntered = { 1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false, 9: false, 10: false };
+    async function startNewGame(selectedPlayerIndices) {
+      triggerHaptic(30);
+      
+      const newPlayerIds = {};
+      const newPlayerNames = {};
+      const newScores = {};
+      const newHasEntered = {};
+      let newCount = 0;
+
+      selectedPlayerIndices.forEach(oldIdx => {
+        newCount++;
+        newPlayerIds[newCount] = GameState.playerIds[oldIdx];
+        newPlayerNames[newCount] = GameState.playerNames[oldIdx];
+        newScores[newCount] = 0;
+        newHasEntered[newCount] = false;
+      });
+
+      GameState.numPlayers = Math.max(1, newCount);
+      GameState.playerIds = newPlayerIds;
+      GameState.playerNames = newPlayerNames;
+      GameState.scores = newScores;
+      GameState.hasEntered = newHasEntered;
       GameState.turnAccumulatedScore = 0;
       GameState.inheritedScore = 0;
       GameState.activePlayer = 1;
       GameState.round = 1;
-      GameState.isCleanTurn = true;
       GameState.phase = 'ready';
       GameState.dice = [
         { value: 1, status: 'free' }, { value: 2, status: 'free' }, { value: 3, status: 'free' },
         { value: 4, status: 'free' }, { value: 5, status: 'free' },
       ];
-      GameState.dice.forEach((d, i) => applyCubeRotation(cubeElements[i], d.value));
-      logContainer.innerHTML = '';
-      addLog(`Nuova partita (${GameState.numPlayers} Giocatori). Obiettivo: ${TARGET_SCORE.toLocaleString('it-IT')} pt.`);
-      statusMessageEl.textContent = 'Premi "Lancia Dadi"';
+      GameState.logs = [];
+      addLog(`Nuova partita avviata.`);
       initScoreboard();
       updateUI();
+      await saveStateToCloud();
     }
 
-    window.onload = function () {
-      try {
-        const savedRecords = localStorage.getItem('zong_player_turn_records');
-        if (savedRecords) Object.assign(GameState.playerTurnRecords, JSON.parse(savedRecords));
-        const savedNames = localStorage.getItem('zong_player_names');
-        if (savedNames) Object.assign(GameState.playerNames, JSON.parse(savedNames));
-        const savedTargetScore = localStorage.getItem('zong_target_score');
-        if (savedTargetScore) TARGET_SCORE = parseInt(savedTargetScore, 10) || 10000;
-      } catch (e) {}
+    // GESTIONE ACCESSO STANZA ONLINE
+    btnJoinRoom.addEventListener('click', async () => {
+      const name = inputPlayerName.value.trim();
+      roomCode = inputRoomCode.value.trim();
+      if (!name || !roomCode) { alert("Inserisci sia il nome che il codice stanza!"); return; }
 
+      triggerHaptic(25);
+
+      try {
+        let { data, error } = await supabaseClient.from('rooms').select('*').eq('code', roomCode).maybeSingle();
+
+        if (!data) {
+          const tScore = parseInt(inputTargetScore.value) || 10000;
+          GameState.targetScore = tScore;
+          TARGET_SCORE = tScore;
+          GameState.numPlayers = 1;
+          GameState.playerIds = { 1: myPlayerId };
+          GameState.playerNames = { 1: name };
+          GameState.scores = { 1: 0 };
+          GameState.hasEntered = { 1: false };
+          GameState.activePlayer = 1;
+          GameState.logs = [{ text: "Nuova partita avviata.", highlight: false, isZong: false }];
+          
+          await supabaseClient.from('rooms').insert([{ code: roomCode, state: GameState }]);
+        } else {
+          Object.assign(GameState, data.state);
+          TARGET_SCORE = GameState.targetScore || 10000;
+          
+          let alreadyIn = false;
+          let nameExists = false;
+
+          for (let i = 1; i <= GameState.numPlayers; i++) {
+            if (GameState.playerIds[i] === myPlayerId) {
+              alreadyIn = true;
+            }
+            if (GameState.playerNames[i].toLowerCase() === name.toLowerCase()) {
+              nameExists = true;
+            }
+          }
+
+          if (!alreadyIn) {
+            if (nameExists) {
+              alert("Questo nome è già preso in questa stanza! Scegline un altro.");
+              return;
+            }
+
+            GameState.numPlayers++;
+            GameState.playerIds[GameState.numPlayers] = myPlayerId;
+            GameState.playerNames[GameState.numPlayers] = name;
+            GameState.scores[GameState.numPlayers] = 0;
+            GameState.hasEntered[GameState.numPlayers] = false;
+            await supabaseClient.from('rooms').update({ state: GameState }).eq('code', roomCode);
+          }
+        }
+
+        roomModal.classList.add('hidden');
+        roomBadge.textContent = `Stanza: ${roomCode}`;
+
+        supabaseClient.channel('room-sync-' + roomCode)
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `code=eq.${roomCode}` }, payload => {
+            if (payload.new && payload.new.state) {
+              const newState = payload.new.state;
+              if (newState.lastEvent && newState.lastEvent.id !== lastEventId) {
+                lastEventId = newState.lastEvent.id;
+                if (!isMyTurn()) {
+                  showQuickToast(newState.lastEvent.type, newState.lastEvent.player);
+                }
+              }
+              Object.assign(GameState, newState);
+              
+              if (winModal && !winModal.classList.contains('hidden') === false) {
+                for (let i = 1; i <= GameState.numPlayers; i++) {
+                  if (GameState.scores[i] >= TARGET_SCORE) {
+                    if (winModal.classList.contains('hidden')) {
+                      triggerVictory(i, GameState.scores[i]);
+                    }
+                    break;
+                  }
+                }
+              }
+
+              initScoreboard();
+              updateUI();
+            }
+          })
+          .subscribe();
+
+        initScoreboard();
+        updateUI();
+      } catch (err) {
+        console.error(err);
+        alert("Errore di connessione a Supabase.");
+      }
+    });
+
+    window.onload = function () {
       GameState.dice.forEach((d, i) => applyCubeRotation(cubeElements[i], d.value));
       diceContainers.forEach((el, index) => el.addEventListener('click', () => onDiceClick(index)));
 
-      btnRoll.addEventListener('click', () => { sound.init(); rollDice(); });
-      btnBank.addEventListener('click', () => { bankPoints(); });
-      btnSplit5s.addEventListener('click', () => { processSplitFives(); });
+      btnRoll.addEventListener('click', () => { if (isMyTurn()) triggerHaptic(20); sound.init(); rollDice(); });
+      btnBank.addEventListener('click', () => { if (isMyTurn()) triggerHaptic(20); bankPoints(); });
+      btnSplit5s.addEventListener('click', () => { if (isMyTurn()) triggerHaptic(20); processSplitFives(); });
 
-      btnInherit.addEventListener('click', () => {
+      // Gestione del modale di variazione punteggio massimo
+      btnTargetScore.addEventListener('click', () => {
+        triggerHaptic(20);
+        inputChangeTargetScore.value = GameState.targetScore || TARGET_SCORE;
+        targetScoreModal.classList.remove('hidden');
+      });
+
+      btnCancelTargetScore.addEventListener('click', () => {
+        triggerHaptic(20);
+        targetScoreModal.classList.add('hidden');
+      });
+
+      btnSaveTargetScore.addEventListener('click', async () => {
+        triggerHaptic(25);
+        const newScore = parseInt(inputChangeTargetScore.value, 10);
+        if (!newScore || newScore < 1000) {
+          alert("Inserisci un punteggio valido (minimo 1000 pt)!");
+          return;
+        }
+
+        const oldScore = GameState.targetScore;
+        GameState.targetScore = newScore;
+        TARGET_SCORE = newScore;
+        targetScoreModal.classList.add('hidden');
+
+        if (oldScore !== newScore) {
+          addLog(`🎯 Punteggio massimo stanza aggiornato a ${newScore.toLocaleString('it-IT')} pt`, true);
+        }
+
+        updateUI();
+        await saveStateToCloud();
+      });
+
+      btnInherit.addEventListener('click', async () => {
+        if (!isMyTurn()) return;
+        triggerHaptic(20);
         sound.init();
         GameState.turnAccumulatedScore = GameState.inheritedScore;
-        GameState.isCleanTurn = false;
         GameState.phase = 'ready';
         rollDice();
       });
 
-      btnResetRoll.addEventListener('click', () => {
+      btnResetRoll.addEventListener('click', async () => {
+        if (!isMyTurn()) return;
+        triggerHaptic(20);
         sound.init();
         GameState.turnAccumulatedScore = 0;
         GameState.inheritedScore = 0;
         GameState.dice.forEach(d => d.status = 'free');
-        GameState.isCleanTurn = true;
         GameState.phase = 'ready';
         rollDice();
       });
 
-      btnNewGame.addEventListener('click', () => { triggerHaptic(20); startNewGame(); });
-
-      btnPlayers.addEventListener('click', () => {
+      btnNewGame.addEventListener('click', () => {
         triggerHaptic(20);
-        GameState.numPlayers = GameState.numPlayers >= 10 ? 1 : GameState.numPlayers + 1;
-        startNewGame();
+        if (confirm("Vuoi davvero azzerare e iniziare una nuova partita?")) {
+          playerSelectList.innerHTML = '';
+          for (let i = 1; i <= GameState.numPlayers; i++) {
+            const pName = getPlayerName(i);
+            const label = document.createElement('label');
+            label.className = 'flex items-center gap-2 p-2 bg-zinc-950 rounded-xl cursor-pointer border border-zinc-800 text-xs text-zinc-200 font-semibold';
+            label.innerHTML = `<input type="checkbox" data-player-index="${i}" checked class="w-4 h-4 accent-amber-500 rounded"> <span>${pName}</span>`;
+            playerSelectList.appendChild(label);
+          }
+          newGameModal.classList.remove('hidden');
+        }
       });
 
-      // Gestione Target Score Modal
-      btnTargetScore.addEventListener('click', () => { triggerHaptic(20); openTargetScoreModal(); });
-      btnSaveTargetScore.addEventListener('click', () => { triggerHaptic(20); saveTargetScore(targetScoreInput.value); });
-      btnCancelTargetScore.addEventListener('click', () => { triggerHaptic(20); targetScoreModal.classList.add('hidden'); });
-      targetScoreInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveTargetScore(targetScoreInput.value); });
+      btnCancelNewGame.addEventListener('click', () => {
+        triggerHaptic(20);
+        newGameModal.classList.add('hidden');
+      });
 
-      document.querySelectorAll('.preset-score-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          triggerHaptic(20);
-          const val = e.currentTarget.getAttribute('data-value');
-          targetScoreInput.value = val;
-          saveTargetScore(val);
+      btnConfirmNewGame.addEventListener('click', () => {
+        triggerHaptic(20);
+        const checkboxes = playerSelectList.querySelectorAll('input[type="checkbox"]');
+        const selectedIndices = [];
+        checkboxes.forEach(cb => {
+          if (cb.checked) {
+            selectedIndices.push(parseInt(cb.getAttribute('data-player-index')));
+          }
         });
-      });
 
-      btnSaveName.addEventListener('click', () => { triggerHaptic(20); savePlayerName(); });
-      btnCancelName.addEventListener('click', () => { triggerHaptic(20); nameModal.classList.add('hidden'); });
-      playerNameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') savePlayerName(); });
+        if (selectedIndices.length === 0) {
+          alert("Devi selezionare almeno un giocatore!");
+          return;
+        }
+
+        newGameModal.classList.add('hidden');
+        startNewGame(selectedIndices);
+      });
 
       btnLeaderboard.addEventListener('click', () => { triggerHaptic(20); leaderboardModal.classList.remove('hidden'); });
       btnCloseLeaderboard.addEventListener('click', () => { triggerHaptic(20); leaderboardModal.classList.add('hidden'); });
-      
-      // Gestione Eventi Modale Record Turni
-      btnRecordModal.addEventListener('click', () => { triggerHaptic(20); recordModal.classList.remove('hidden'); });
-      btnCloseRecordModal.addEventListener('click', () => { triggerHaptic(20); recordModal.classList.add('hidden'); });
-
       btnRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.remove('hidden'); });
       btnCloseRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.add('hidden'); });
       btnGotItRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.add('hidden'); });
-      btnCloseZong.addEventListener('click', () => { triggerHaptic(20); zongModal.classList.add('hidden'); endTurn(); });
-      btnRestartWin.addEventListener('click', () => { triggerHaptic(20); winModal.classList.add('hidden'); startNewGame(); });
+      btnRestartWin.addEventListener('click', () => { 
+        winModal.classList.add('hidden'); 
+        playerSelectList.innerHTML = '';
+        for (let i = 1; i <= GameState.numPlayers; i++) {
+          const pName = getPlayerName(i);
+          const label = document.createElement('label');
+          label.className = 'flex items-center gap-2 p-2 bg-zinc-950 rounded-xl cursor-pointer border border-zinc-800 text-xs text-zinc-200 font-semibold';
+          label.innerHTML = `<input type="checkbox" data-player-index="${i}" checked class="w-4 h-4 accent-amber-500 rounded"> <span>${pName}</span>`;
+          playerSelectList.appendChild(label);
+        }
+        newGameModal.classList.add('hidden'); 
+      });
 
       btnSound.addEventListener('click', () => {
         triggerHaptic(20);
@@ -1417,9 +1679,6 @@
           : '<i data-lucide="volume-x" class="w-4 h-4 text-red-400"></i>';
         lucide.createIcons();
       });
-
-      initScoreboard();
-      updateUI();
     };
   </script>
 </body>
