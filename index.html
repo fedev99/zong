@@ -225,25 +225,20 @@
       </div>
       <div>
         <h1 class="text-xl sm:text-2xl font-black tracking-wider text-white font-display flex items-center gap-1.5">
-          ZONG <span id="roomBadge" class="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/35">Stanza: --</span>
+          ZONG <span id="roomBadge" class="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/35"> --</span>
         </h1>
       </div>
     </div>
 
     <!-- Actions -->
     <div class="flex items-center gap-1.5 sm:gap-2">
-      
-     
-
       <button id="btnSound" class="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300">
         <i data-lucide="volume-2" class="w-4 h-4"></i>
       </button>
 
-
-<!-- Bottone Icona Punteggio Massimo Stanza -->
-       <button id="btnTargetScore" title="Imposta Punteggio Massimo Stanza" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-amber-500/40 text-amber-400 text-xs font-semibold flex items-center gap-1 hover:bg-amber-500/10 transition">
+      <!-- Bottone Icona Punteggio Massimo Stanza (Solo Icona) -->
+      <button id="btnTargetScore" title="Punteggio Massimo Stanza: 10.000 pt" class="p-2 rounded-xl bg-zinc-900 border border-amber-500/40 text-amber-400 flex items-center justify-center hover:bg-amber-500/10 transition">
         <i data-lucide="target" class="w-4 h-4"></i>
-        <span id="targetScoreDisplay" class="font-bold"></span>
       </button>
 
       <button id="btnLeaderboard" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-emerald-300 text-xs font-semibold flex items-center gap-1">
@@ -838,7 +833,6 @@
     const btnConfirmNewGame = document.getElementById('btnConfirmNewGame');
 
     const btnTargetScore = document.getElementById('btnTargetScore');
-    const targetScoreDisplay = document.getElementById('targetScoreDisplay');
     const targetScoreModal = document.getElementById('targetScoreModal');
     const inputChangeTargetScore = document.getElementById('inputChangeTargetScore');
     const btnCancelTargetScore = document.getElementById('btnCancelTargetScore');
@@ -918,8 +912,8 @@
 
     function updateUI() {
       TARGET_SCORE = GameState.targetScore || TARGET_SCORE;
-      if (targetScoreDisplay) {
-        targetScoreDisplay.textContent = TARGET_SCORE.toLocaleString('it-IT');
+      if (btnTargetScore) {
+        btnTargetScore.title = `Punteggio Massimo Stanza: ${TARGET_SCORE.toLocaleString('it-IT')} pt`;
       }
       renderLogs();
       const totalCards = GameState.numPlayers;
@@ -1072,7 +1066,7 @@
                 btnBankText.textContent = `Apertura (${totalTurnPoints}/500)`;
               } else {
                 btnBank.disabled = false;
-                btnBank.classList.remove('opacity-40', 'cursor-not-allowed');
+                btnBank.classList.remove('opacity-50', 'cursor-not-allowed');
                 btnBankText.textContent = "Incassa";
               }
             } else {
@@ -1669,7 +1663,7 @@
           label.innerHTML = `<input type="checkbox" data-player-index="${i}" checked class="w-4 h-4 accent-amber-500 rounded"> <span>${pName}</span>`;
           playerSelectList.appendChild(label);
         }
-        newGameModal.classList.remove('hidden'); 
+        newGameModal.classList.add('hidden'); 
       });
 
       btnSound.addEventListener('click', () => {
