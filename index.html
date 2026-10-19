@@ -196,23 +196,23 @@
     </div>
   </div>
 
-  <!-- MODALE IMPOSTA PUNTEGGIO MASSIMO STANZA -->
+  <!-- MODALE IMPOSTA/VISUALIZZA PUNTEGGIO MASSIMO STANZA -->
   <div id="targetScoreModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-zinc-900 border border-amber-500/50 rounded-2xl p-5 max-w-xs w-full text-center shadow-2xl">
-      <div class="w-10 h-10 mx-auto mb-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center">
-        <i data-lucide="target" class="w-5 h-5"></i>
+    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-xs w-full text-center">
+      <div class="w-12 h-12 mx-auto mb-3 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+        <i data-lucide="target" class="w-6 h-6"></i>
       </div>
       <h3 class="text-base font-bold text-white font-display mb-1">Punteggio Massimo</h3>
-      <p class="text-xs text-zinc-400 mb-4">Imposta l'obiettivo di punti per vincere la partita in questa stanza</p>
+      <p class="text-xs text-zinc-400 mb-4">Imposta o visualizza il punteggio da raggiungere per vincere la partita.</p>
       
-      <div class="text-left mb-4">
-        <label class="text-[10px] uppercase font-bold text-amber-400 block mb-1">Nuovo Obiettivo (pt)</label>
-        <input id="inputChangeTargetScore" type="number" step="500" min="1000" value="10000" class="w-full bg-zinc-950 border border-amber-500/60 rounded-xl px-3 py-2 text-amber-300 font-bold text-base text-center focus:outline-none focus:border-amber-400" />
+      <div class="mb-4 text-left">
+        <label class="text-[10px] uppercase font-bold text-amber-400 block mb-1">Obiettivo Stanza (pt)</label>
+        <input id="modalInputTargetScore" type="number" step="500" min="1000" value="10000" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-amber-300 font-bold text-base focus:outline-none focus:border-amber-400 text-center" />
       </div>
 
       <div class="flex gap-2">
         <button id="btnCancelTargetScore" class="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs">Annulla</button>
-        <button id="btnSaveTargetScore" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs shadow-md">Salva</button>
+        <button id="btnSaveTargetScore" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs">Salva</button>
       </div>
     </div>
   </div>
@@ -232,13 +232,19 @@
 
     <!-- Actions -->
     <div class="flex items-center gap-1.5 sm:gap-2">
-      <button id="btnSound" class="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300">
-        <i data-lucide="volume-2" class="w-4 h-4"></i>
+      <!-- Icona Target Score per Smartphone (solo icona) -->
+      <button id="btnTargetScoreMobile" class="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 sm:hidden flex items-center justify-center">
+        <i data-lucide="target" class="w-4 h-4"></i>
       </button>
 
-      <!-- Bottone Icona Punteggio Massimo Stanza (Solo Icona) -->
-      <button id="btnTargetScore" title="Punteggio Massimo Stanza: 10.000 pt" class="p-2 rounded-xl bg-zinc-900 border border-amber-500/40 text-amber-400 flex items-center justify-center hover:bg-amber-500/10 transition">
+      <!-- Icona/Bottone Target Score per Desktop/Tablet -->
+      <button id="btnTargetScoreHeader" class="hidden sm:flex p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 text-xs font-semibold items-center gap-1">
         <i data-lucide="target" class="w-4 h-4"></i>
+        <span id="targetScoreHeaderLabel" class="hidden sm:inline">10.000 pt</span>
+      </button>
+
+      <button id="btnSound" class="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300">
+        <i data-lucide="volume-2" class="w-4 h-4"></i>
       </button>
 
       <button id="btnLeaderboard" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-emerald-300 text-xs font-semibold flex items-center gap-1">
@@ -246,7 +252,7 @@
         <span class="hidden sm:inline">Classifica</span>
       </button>
 
-      <button id="btnRules" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-purple-300 text-xs font-semibold flex items-center gap-1">
+      <button id="btnRules" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-300 text-xs font-semibold flex items-center gap-1">
         <i data-lucide="book-open" class="w-4 h-4"></i>
         <span class="hidden sm:inline">Regole</span>
       </button>
@@ -484,12 +490,14 @@
     let lastEventId = null;
 
     // Fallback aptico per iOS Safari 17.4+ (non supporta navigator.vibrate):
+    // un <input type="checkbox" switch> nascosto genera un leggero "tick" quando
+    // viene attivato tramite la sua label durante un gesto dell'utente.
     let _hapticLabel = null;
     let _lastIosTick = 0;
     function iosTick() {
       try {
         const now = Date.now();
-        if (now - _lastIosTick < 60) return;
+        if (now - _lastIosTick < 60) return; // evita doppi tick ravvicinati
         _lastIosTick = now;
         if (!_hapticLabel) {
           const input = document.createElement('input');
@@ -512,6 +520,7 @@
           navigator.vibrate(duration);
           return;
         }
+        // Fallback iOS: un tick per ogni segmento di vibrazione del pattern
         if (Array.isArray(duration)) {
           let t = 0;
           duration.forEach((ms, i) => {
@@ -648,7 +657,7 @@
       turnAccumulatedScore: 0, 
       inheritedScore: 0,       
       securedInSubTurn: false,
-      logs: [],
+      logs: [], // Gestione centralizzata della cronologia per la sincronizzazione real-time
       lastEvent: null
     };
 
@@ -671,7 +680,7 @@
       }
 
       toastEl.classList.remove('hidden', 'toast-animate');
-      void toastEl.offsetWidth;
+      void toastEl.offsetWidth; // Trigger reflow
       toastEl.classList.add('toast-animate');
 
       setTimeout(() => {
@@ -832,9 +841,11 @@
     const btnCancelNewGame = document.getElementById('btnCancelNewGame');
     const btnConfirmNewGame = document.getElementById('btnConfirmNewGame');
 
-    const btnTargetScore = document.getElementById('btnTargetScore');
+    const btnTargetScoreHeader = document.getElementById('btnTargetScoreHeader');
+    const btnTargetScoreMobile = document.getElementById('btnTargetScoreMobile');
+    const targetScoreHeaderLabel = document.getElementById('targetScoreHeaderLabel');
     const targetScoreModal = document.getElementById('targetScoreModal');
-    const inputChangeTargetScore = document.getElementById('inputChangeTargetScore');
+    const modalInputTargetScore = document.getElementById('modalInputTargetScore');
     const btnCancelTargetScore = document.getElementById('btnCancelTargetScore');
     const btnSaveTargetScore = document.getElementById('btnSaveTargetScore');
 
@@ -862,10 +873,42 @@
       });
     }
 
+    function openTargetScoreModal() {
+      triggerHaptic(20);
+      if (modalInputTargetScore) {
+        modalInputTargetScore.value = GameState.targetScore || TARGET_SCORE;
+      }
+      if (targetScoreModal) {
+        targetScoreModal.classList.remove('hidden');
+      }
+    }
+
+    function closeTargetScoreModal() {
+      triggerHaptic(20);
+      if (targetScoreModal) {
+        targetScoreModal.classList.add('hidden');
+      }
+    }
+
+    async function saveTargetScoreFromModal() {
+      triggerHaptic(25);
+      const val = parseInt(modalInputTargetScore.value);
+      if (isNaN(val) || val < 1000) {
+        alert("Inserisci un punteggio valido (minimo 1000 punti)!");
+        return;
+      }
+      GameState.targetScore = val;
+      TARGET_SCORE = val;
+      addLog(`🎯 Obiettivo della stanza impostato a ${val.toLocaleString('it-IT')} pt`, true);
+      closeTargetScoreModal();
+      updateUI();
+      await saveStateToCloud();
+    }
+
     function addLog(text, highlight = false, isZong = false) {
       if (!GameState.logs) GameState.logs = [];
       GameState.logs.unshift({ text, highlight, isZong });
-      if (GameState.logs.length > 30) GameState.logs.pop();
+      if (GameState.logs.length > 30) GameState.logs.pop(); // Mantiene un limite massimo di log storici
       renderLogs();
     }
 
@@ -912,10 +955,10 @@
 
     function updateUI() {
       TARGET_SCORE = GameState.targetScore || TARGET_SCORE;
-      if (btnTargetScore) {
-        btnTargetScore.title = `Punteggio Massimo Stanza: ${TARGET_SCORE.toLocaleString('it-IT')} pt`;
+      if (targetScoreHeaderLabel) {
+        targetScoreHeaderLabel.textContent = `${TARGET_SCORE.toLocaleString('it-IT')} pt`;
       }
-      renderLogs();
+      renderLogs(); // Assicura che i log siano sincronizzati e renderizzati correttamente ad ogni aggiornamento UI
       const totalCards = GameState.numPlayers;
       for(let i=1; i<=totalCards; i++) {
         const cardEl = document.getElementById(`cardP${i}`);
@@ -1193,6 +1236,7 @@
         }
       });
 
+      // CORREZIONE BUG: Se tutti i dadi sono bloccati (Hot Dice non resettato), forza il reset di tutti i dadi prima del lancio
       if (indicesToRoll.length === 0) {
         GameState.dice.forEach((d, idx) => {
           d.status = 'free';
@@ -1317,12 +1361,14 @@
       sound.playVictory();
       triggerHaptic([100, 50, 100, 50, 200]);
       
+      // Calcola la classifica ordinata per il modale di vittoria
       const list = [];
       for (let i = 1; i <= GameState.numPlayers; i++) {
         list.push({ id: i, score: GameState.scores[i] || 0 });
       }
       list.sort((a, b) => b.score - a.score);
 
+      // Trova la posizione del giocatore corrente (locale)
       let myLocalIndex = -1;
       for (let i = 1; i <= GameState.numPlayers; i++) {
         if (GameState.playerIds[i] === myPlayerId) {
@@ -1338,6 +1384,7 @@
         }
       });
 
+      // Titolo dinamico personalizzato per ogni giocatore
       let titleText = "VITTORIA!";
       let subtitleText = `${getPlayerName(player)} ha trionfato con ${finalScore} punti!`;
 
@@ -1349,6 +1396,9 @@
           titleText = "SEI ARRIVATO SECONDO!";
           subtitleText = `Ottima partita! Secondo posto conquistato.`;
         } else {
+          // Ordinali ordinali o generico
+          let suffix = "o";
+          if (myRank === 3) suffix = "o terzo";
           titleText = `SEI ARRIVATO ${myRank}°!`;
           subtitleText = `Hai concluso la partita in ${myRank}° posizione.`;
         }
@@ -1357,6 +1407,7 @@
       document.getElementById('winnerTitle').textContent = titleText;
       document.getElementById('winnerSubtitle').textContent = subtitleText;
 
+      // Popola la classifica sotto nel modale di vittoria
       if (winLeaderboardContainer) {
         winLeaderboardContainer.innerHTML = '';
         list.forEach((p, idx) => {
@@ -1523,9 +1574,11 @@
               }
               Object.assign(GameState, newState);
               
+              // Se la partita è finita ed è arrivato lo stato di vittoria tramite cloud, mostra il modale di vittoria anche agli altri
               if (winModal && !winModal.classList.contains('hidden') === false) {
                 for (let i = 1; i <= GameState.numPlayers; i++) {
                   if (GameState.scores[i] >= TARGET_SCORE) {
+                    // Se c'è un vincitore ma il modale locale non è aperto, aprilo
                     if (winModal.classList.contains('hidden')) {
                       triggerVictory(i, GameState.scores[i]);
                     }
@@ -1555,39 +1608,6 @@
       btnRoll.addEventListener('click', () => { if (isMyTurn()) triggerHaptic(20); sound.init(); rollDice(); });
       btnBank.addEventListener('click', () => { if (isMyTurn()) triggerHaptic(20); bankPoints(); });
       btnSplit5s.addEventListener('click', () => { if (isMyTurn()) triggerHaptic(20); processSplitFives(); });
-
-      // Gestione del modale di variazione punteggio massimo
-      btnTargetScore.addEventListener('click', () => {
-        triggerHaptic(20);
-        inputChangeTargetScore.value = GameState.targetScore || TARGET_SCORE;
-        targetScoreModal.classList.remove('hidden');
-      });
-
-      btnCancelTargetScore.addEventListener('click', () => {
-        triggerHaptic(20);
-        targetScoreModal.classList.add('hidden');
-      });
-
-      btnSaveTargetScore.addEventListener('click', async () => {
-        triggerHaptic(25);
-        const newScore = parseInt(inputChangeTargetScore.value, 10);
-        if (!newScore || newScore < 1000) {
-          alert("Inserisci un punteggio valido (minimo 1000 pt)!");
-          return;
-        }
-
-        const oldScore = GameState.targetScore;
-        GameState.targetScore = newScore;
-        TARGET_SCORE = newScore;
-        targetScoreModal.classList.add('hidden');
-
-        if (oldScore !== newScore) {
-          addLog(`🎯 Punteggio massimo stanza aggiornato a ${newScore.toLocaleString('it-IT')} pt`, true);
-        }
-
-        updateUI();
-        await saveStateToCloud();
-      });
 
       btnInherit.addEventListener('click', async () => {
         if (!isMyTurn()) return;
@@ -1647,6 +1667,11 @@
         newGameModal.classList.add('hidden');
         startNewGame(selectedIndices);
       });
+
+      if (btnTargetScoreHeader) btnTargetScoreHeader.addEventListener('click', openTargetScoreModal);
+      if (btnTargetScoreMobile) btnTargetScoreMobile.addEventListener('click', openTargetScoreModal);
+      if (btnCancelTargetScore) btnCancelTargetScore.addEventListener('click', closeTargetScoreModal);
+      if (btnSaveTargetScore) btnSaveTargetScore.addEventListener('click', saveTargetScoreFromModal);
 
       btnLeaderboard.addEventListener('click', () => { triggerHaptic(20); leaderboardModal.classList.remove('hidden'); });
       btnCloseLeaderboard.addEventListener('click', () => { triggerHaptic(20); leaderboardModal.classList.add('hidden'); });
