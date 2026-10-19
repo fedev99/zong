@@ -416,7 +416,10 @@
   <div id="leaderboardModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-sm w-full">
       <div class="flex items-center justify-between pb-2 border-b border-zinc-800 mb-3">
-        <h3 class="text-base font-bold text-white font-display">Classifica</h3>
+        <div>
+          <h3 class="text-base font-bold text-white font-display">Classifica</h3>
+          <p id="leaderboardTargetLabel" class="text-[10px] text-amber-400 font-semibold"></p>
+        </div>
         <button id="btnCloseLeaderboard"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
       <div id="leaderboardContainer" class="space-y-2"></div>
@@ -760,6 +763,7 @@
     const btnCloseLeaderboard = document.getElementById('btnCloseLeaderboard');
     const leaderboardModal = document.getElementById('leaderboardModal');
     const leaderboardContainer = document.getElementById('leaderboardContainer');
+    const leaderboardTargetLabel = document.getElementById('leaderboardTargetLabel');
     const zongModal = document.getElementById('zongModal');
     const btnCloseZong = document.getElementById('btnCloseZong');
     const winModal = document.getElementById('winModal');
@@ -1051,6 +1055,9 @@
 
     function renderLeaderboard() {
       if (!leaderboardContainer) return;
+      if (leaderboardTargetLabel) {
+        leaderboardTargetLabel.textContent = `Obiettivo Stanza: ${(GameState.targetScore || TARGET_SCORE).toLocaleString('it-IT')} pt`;
+      }
       leaderboardContainer.innerHTML = '';
       const list = [];
       for (let i = 1; i <= GameState.numPlayers; i++) {
