@@ -394,20 +394,20 @@
 
   <!-- WIN MODAL -->
   <div id="winModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-gradient-to-b from-amber-950 via-zinc-950 to-black border-2 border-amber-500 rounded-3xl p-6 max-w-sm w-full text-center glow-gold">
-      <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center text-amber-400">
-        <i data-lucide="trophy" class="w-8 h-8"></i>
+    <div class="bg-gradient-to-b from-amber-950 via-zinc-950 to-black border-2 border-amber-500 rounded-3xl p-6 max-w-sm w-full text-center glow-gold max-h-[85vh] flex flex-col">
+      <div class="w-14 h-14 mx-auto mb-2 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center text-amber-400">
+        <i data-lucide="trophy" class="w-7 h-7"></i>
       </div>
-      <h2 class="text-2xl font-black text-amber-400 font-display" id="winnerTitle">VITTORIA!</h2>
-      <p class="text-xs text-zinc-300 my-2" id="winnerSubtitle">Vittoria!</p>
+      <h2 class="text-xl font-black text-amber-400 font-display" id="winnerTitle">VITTORIA!</h2>
+      <p class="text-xs text-zinc-300 my-1" id="winnerSubtitle">Vittoria!</p>
       
-      <!-- Classifica aggiornata sotto il pop-up di fine partita -->
-      <div class="my-3 text-left">
-        <span class="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Classifica Finale</span>
-        <div id="finalLeaderboardContainer" class="space-y-1.5 max-h-36 overflow-y-auto"></div>
+      <!-- Classifica Finale all'interno del modale di vittoria -->
+      <div class="mt-3 text-left">
+        <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">Classifica Finale</span>
+        <div id="winLeaderboardContainer" class="space-y-1.5 max-h-36 overflow-y-auto mb-3"></div>
       </div>
 
-      <button id="btnRestartWin" class="w-full py-3 rounded-xl bg-amber-500 text-zinc-950 font-bold text-sm mt-3">Nuova Partita</button>
+      <button id="btnRestartWin" class="w-full py-3 rounded-xl bg-amber-500 text-zinc-950 font-bold text-sm mt-auto">Nuova Partita</button>
     </div>
   </div>
 
@@ -785,6 +785,7 @@
     const leaderboardTargetLabel = document.getElementById('leaderboardTargetLabel');
     const zongModal = document.getElementById('zongModal');
     const winModal = document.getElementById('winModal');
+    const winLeaderboardContainer = document.getElementById('winLeaderboardContainer');
     const btnRestartWin = document.getElementById('btnRestartWin');
     const btnSplit5s = document.getElementById('btnSplit5s');
     const playersContainer = document.getElementById('playersContainer');
@@ -1284,55 +1285,69 @@
     async function triggerVictory(player, finalScore) {
       sound.playVictory();
       triggerHaptic([100, 50, 100, 50, 200]);
-
-      // Popola la classifica finale all'interno del modale di vittoria
-      const finalLeaderboardContainer = document.getElementById('finalLeaderboardContainer');
-      if (finalLeaderboardContainer) {
-        finalLeaderboardContainer.innerHTML = '';
-        const list = [];
-        for (let i = 1; i <= GameState.numPlayers; i++) {
-          list.push({ id: i, score: GameState.scores[i] || 0 });
-        }
-        list.sort((a, b) => b.score - a.score);
-
-        list.forEach((p, idx) => {
-          const row = document.createElement('div');
-          row.className = `flex items-center justify-between p-2 rounded-lg border ${p.id === player ? 'bg-amber-500/15 border-amber-500/50' : 'bg-zinc-950 border-zinc-800'}`;
-          row.innerHTML = `
-            <div class="flex items-center gap-2">
-              <span class="w-4 h-4 rounded-full flex items-center justify-center bg-zinc-800 text-[10px] font-bold">${idx + 1}</span>
-              <span class="text-xs font-bold text-zinc-200">${getPlayerName(p.id)}</span>
-            </div>
-            <span class="text-xs font-black text-white">${p.score} pt</span>
-          `;
-          finalLeaderboardContainer.appendChild(row);
-        });
+      
+      // Calcola la classifica ordinata per il modale di vittoria
+      const list = [];
+      for (let i = 1; i <= GameState.numPlayers; i++) {
+        list.push({ id: i, score: GameState.scores[i] || 0 });
       }
+      list.sort((a, b) => b.score - a.score);
 
-      // Trova la posizione in classifica del giocatore corrente (myPlayerId)
-      let myPlayerIndex = 1;
+      // Trova la posizione del giocatore corrente (locale)
+      let myLocalIndex = -1;
       for (let i = 1; i <= GameState.numPlayers; i++) {
         if (GameState.playerIds[i] === myPlayerId) {
-          myPlayerIndex = i;
+          myLocalIndex = i;
           break;
         }
       }
 
-      const sortedList = [];
-      for (let i = 1; i <= GameState.numPlayers; i++) {
-        sortedList.push({ id: i, score: GameState.scores[i] || 0 });
-      }
-      sortedList.sort((a, b) => b.score - a.score);
-      const myRank = sortedList.findIndex(item => item.id === myPlayerIndex) + 1;
+      let myRank = 1;
+      list.forEach((p, idx) => {
+        if (p.id === myLocalIndex) {
+          myRank = idx + 1;
+        }
+      });
 
-      if (myPlayerIndex === player) {
-        document.getElementById('winnerTitle').textContent = `VITTORIA!`;
-        document.getElementById('winnerSubtitle').textContent = `Hai trionfato raggiungendo ${finalScore} punti in ${GameState.round} turni!`;
-      } else {
-        const ordinalSuffixes = ['', 'primo', 'secondo', 'terzo', 'quarto', 'quinto'];
-        const rankText = ordinalSuffixes[myRank] || `${myRank}°`;
-        document.getElementById('winnerTitle').textContent = `FINE PARTITA`;
-        document.getElementById('winnerSubtitle').textContent = `${getPlayerName(player)} ha vinto. Sei arrivato ${rankText}!`;
+      // Titolo dinamico personalizzato per ogni giocatore
+      let titleText = "VITTORIA!";
+      let subtitleText = `${getPlayerName(player)} ha trionfato con ${finalScore} punti!`;
+
+      if (myLocalIndex !== -1) {
+        if (myRank === 1) {
+          titleText = "HAI VINTO!";
+          subtitleText = `Complimenti, sei arrivato 1° con ${finalScore} punti!`;
+        } else if (myRank === 2) {
+          titleText = "SEI ARRIVATO SECONDO!";
+          subtitleText = `Ottima partita! Secondo posto conquistato.`;
+        } else {
+          // Ordinali ordinali o generico
+          let suffix = "o";
+          if (myRank === 3) suffix = "o terzo";
+          titleText = `SEI ARRIVATO ${myRank}°!`;
+          subtitleText = `Hai concluso la partita in ${myRank}° posizione.`;
+        }
+      }
+
+      document.getElementById('winnerTitle').textContent = titleText;
+      document.getElementById('winnerSubtitle').textContent = subtitleText;
+
+      // Popola la classifica sotto nel modale di vittoria
+      if (winLeaderboardContainer) {
+        winLeaderboardContainer.innerHTML = '';
+        list.forEach((p, idx) => {
+          const row = document.createElement('div');
+          const isMe = GameState.playerIds[p.id] === myPlayerId;
+          row.className = `flex items-center justify-between p-2 rounded-xl border ${isMe ? 'bg-amber-500/10 border-amber-500/50' : 'bg-zinc-950 border-zinc-800'}`;
+          row.innerHTML = `
+            <div class="flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full flex items-center justify-center bg-zinc-800 text-xs font-bold">${idx + 1}</span>
+              <span class="text-xs font-bold ${isMe ? 'text-amber-400' : 'text-zinc-200'}">${getPlayerName(p.id)} ${isMe ? '(Tu)' : ''}</span>
+            </div>
+            <span class="text-xs font-black text-white">${p.score} pt</span>
+          `;
+          winLeaderboardContainer.appendChild(row);
+        });
       }
 
       winModal.classList.remove('hidden');
@@ -1483,6 +1498,20 @@
                 }
               }
               Object.assign(GameState, newState);
+              
+              // Se la partita è finita ed è arrivato lo stato di vittoria tramite cloud, mostra il modale di vittoria anche agli altri
+              if (winModal && !winModal.classList.contains('hidden') === false) {
+                for (let i = 1; i <= GameState.numPlayers; i++) {
+                  if (GameState.scores[i] >= TARGET_SCORE) {
+                    // Se c'è un vincitore ma il modale locale non è aperto, aprilo
+                    if (winModal.classList.contains('hidden')) {
+                      triggerVictory(i, GameState.scores[i]);
+                    }
+                    break;
+                  }
+                }
+              }
+
               initScoreboard();
               updateUI();
             }
