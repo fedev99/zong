@@ -387,9 +387,8 @@
       <div class="w-14 h-14 mx-auto mb-2 rounded-full bg-red-600/20 border border-red-500/50 flex items-center justify-center text-red-500">
         <i data-lucide="skull" class="w-8 h-8"></i>
       </div>
-      <h2 class="text-4xl font-black text-red-500 font-display mb-1">ZONG!</h2>
-      <p class="text-xs text-zinc-300 mb-4">Nessun punto valido. Turno perso!</p>
-      <button id="btnCloseZong" class="w-full py-3 rounded-xl bg-red-600 text-white font-bold text-sm">Passa il Turno</button>
+      <h2 class="text-4xl font-black text-red-500 font-display mb-1">Hai fatto ZONG</h2>
+      <p class="text-xs text-zinc-300">Nessun punto valido. Turno perso!</p>
     </div>
   </div>
 
@@ -778,7 +777,6 @@
     const leaderboardContainer = document.getElementById('leaderboardContainer');
     const leaderboardTargetLabel = document.getElementById('leaderboardTargetLabel');
     const zongModal = document.getElementById('zongModal');
-    const btnCloseZong = document.getElementById('btnCloseZong');
     const winModal = document.getElementById('winModal');
     const btnRestartWin = document.getElementById('btnRestartWin');
     const btnSplit5s = document.getElementById('btnSplit5s');
@@ -1200,6 +1198,13 @@
       GameState.lastEvent = { id: Math.random(), type: 'zong', player: getPlayerName(GameState.activePlayer) };
       zongModal.classList.remove('hidden');
       await saveStateToCloud();
+
+      setTimeout(async () => {
+        zongModal.classList.add('hidden');
+        if (isMyTurn()) {
+          await endTurn();
+        }
+      }, 1000);
     }
 
     async function endTurn() {
@@ -1508,7 +1513,6 @@
       btnRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.remove('hidden'); });
       btnCloseRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.add('hidden'); });
       btnGotItRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.add('hidden'); });
-      btnCloseZong.addEventListener('click', () => { if(isMyTurn()) endTurn(); });
       btnRestartWin.addEventListener('click', () => { 
         winModal.classList.add('hidden'); 
         playerSelectList.innerHTML = '';
