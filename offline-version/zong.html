@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>ZONG - Il Gioco dei Dadi Offline</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #060709;
+      color: #e5e7eb;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .font-display { font-family: 'Outfit', sans-serif; }
+
+    /* 3D Dice Perspective and Cube Styles */
+    .dice-scene {
+      perspective: 700px;
+      width: 68px;
+      height: 68px;
+    }
+    @media (min-width: 640px) {
+      .dice-scene { width: 84px; height: 84px; }
+    }
+
+    .cube {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.8s cubic-bezier(0.2, 0.85, 0.35, 1.2), box-shadow 0.25s ease;
+      cursor: pointer;
+    }
+
+    .cube-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 35% 35%, #2a2c33, #15161b 80%, #0c0d10);
+      border: 2px solid rgba(255, 215, 0, 0.25);
+      border-radius: 14px;
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.1), inset 0 -3px 6px rgba(0,0,0,0.8), 0 5px 12px rgba(0,0,0,0.7);
+      display: grid;
+      grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+      padding: 9px;
+      box-sizing: border-box;
+      backface-visibility: hidden;
+    }
+
+    .pip {
+      align-self: center;
+      justify-self: center;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #ffffff, #e6c65b 45%, #b38600 95%);
+      box-shadow: 0 0 5px rgba(255, 215, 0, 0.7);
+    }
+    @media (min-width: 640px) {
+      .pip { width: 14px; height: 14px; }
+      .cube-face { padding: 11px; border-radius: 16px; }
+    }
+
+    .cube-face.f1 { transform: rotateY(0deg) translateZ(34px); }
+    .cube-face.f6 { transform: rotateY(180deg) translateZ(34px); }
+    .cube-face.f2 { transform: rotateY(-90deg) translateZ(34px); }
+    .cube-face.f5 { transform: rotateY(90deg) translateZ(34px); }
+    .cube-face.f3 { transform: rotateX(-90deg) translateZ(34px); }
+    .cube-face.f4 { transform: rotateX(90deg) translateZ(34px); }
+
+    @media (min-width: 640px) {
+      .cube-face.f1 { transform: rotateY(0deg) translateZ(42px); }
+      .cube-face.f6 { transform: rotateY(180deg) translateZ(42px); }
+      .cube-face.f2 { transform: rotateY(-90deg) translateZ(42px); }
+      .cube-face.f5 { transform: rotateY(90deg) translateZ(42px); }
+      .cube-face.f3 { transform: rotateX(-90deg) translateZ(42px); }
+      .cube-face.f4 { transform: rotateX(90deg) translateZ(42px); }
+    }
+
+    .dice-container.selected .cube-face {
+      border-color: #ffd700;
+      box-shadow: 0 0 16px rgba(255, 215, 0, 0.65), inset 0 0 8px rgba(255, 215, 0, 0.4);
+    }
+    .dice-container.selected { transform: translateY(-6px); }
+
+    .dice-container.banked {
+      opacity: 0.45;
+      filter: grayscale(0.5);
+      cursor: not-allowed;
+    }
+    .dice-container.banked .cube-face { border-color: #3b82f6; }
+
+    .dice-container.forced_free .cube-face {
+      border-color: #a855f7;
+      box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+    }
+    .dice-container.forced_free { cursor: not-allowed; }
+
+    @keyframes tumble {
+      0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+      50% { transform: rotateX(720deg) rotateY(540deg) rotateZ(180deg); }
+      100% { transform: rotateX(1080deg) rotateY(1080deg) rotateZ(360deg); }
+    }
+    .is-rolling { animation: tumble 0.7s infinite linear; }
+
+    @keyframes zongShake {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      20% { transform: scale(1.15) rotate(-4deg); }
+      40% { transform: scale(1.2) rotate(4deg); }
+      60% { transform: scale(1.15) rotate(-3deg); }
+      80% { transform: scale(1.1) rotate(2deg); }
+    }
+    .zong-animate { animation: zongShake 0.65s ease-in-out; }
+
+    .felt-table {
+      background: radial-gradient(ellipse at center, #13171e 0%, #0a0c10 75%, #050608 100%);
+      box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.95), 0 10px 25px rgba(0, 0, 0, 0.8);
+      border: 1px solid rgba(255, 215, 0, 0.12);
+    }
+    .glow-gold { box-shadow: 0 0 25px rgba(234, 179, 8, 0.25); }
+    .glow-red { box-shadow: 0 0 35px rgba(239, 68, 68, 0.45); }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between overflow-x-hidden p-2 sm:p-4">
+
+  <!-- Header -->
+  <header class="w-full max-w-5xl mx-auto py-2 flex items-center justify-between border-b border-zinc-800/80">
+    <div class="flex items-center space-x-2.5">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 text-zinc-950 font-black text-xl font-display">
+        Z
+      </div>
+      <div>
+        <h1 class="text-xl sm:text-2xl font-black tracking-wider text-white font-display flex items-center gap-1.5">
+          ZONG
+        </h1>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center gap-1.5 sm:gap-2">
+      
+      <button id="btnSound" class="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300">
+        <i data-lucide="volume-2" class="w-4 h-4"></i>
+      </button>
+
+      <!-- BOTTONE PER IMPOSTARE IL PUNTEGGIO MASSIMO -->
+      <button id="btnTargetScore" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 text-xs font-semibold flex items-center gap-1.5" title="Imposta Punteggio Finale">
+        <i data-lucide="target" class="w-4 h-4 text-amber-400"></i>
+        <span id="targetScoreDisplay" class="hidden sm:inline">10.000 pt</span>
+      </button>
+
+      <!-- BOTTONE TRASFORMATO IN FINESTRA CLASSIFICA RECORD TURNO -->
+      <button id="btnRecordModal" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-300 text-xs font-semibold flex items-center gap-1.5" title="Classifica Record di Turno">
+        <i data-lucide="award" class="w-4 h-4 text-amber-400"></i>
+        <span class="hidden sm:inline">Record</span>
+      </button>
+
+      <button id="btnLeaderboard" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-emerald-300 text-xs font-semibold flex items-center gap-1">
+        <i data-lucide="trophy" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">Classifica</span>
+      </button>
+
+      <button id="btnRules" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-purple-300 text-xs font-semibold flex items-center gap-1">
+        <i data-lucide="book-open" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">Regole</span>
+      </button>
+
+      <!-- TAB GIOCATORI: CICLA DA 1 A 10 GIOCATORI -->
+      <button id="btnPlayers" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-blue-300 text-xs font-semibold flex items-center gap-1">
+        <i data-lucide="users" class="w-4 h-4"></i>
+        <span id="btnPlayersText">1 Gioc.</span>
+      </button>
+
+      <button id="btnNewGame" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-red-900/60 text-red-300 text-xs font-semibold flex items-center gap-1">
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Game Area -->
+  <main class="w-full max-w-5xl mx-auto flex-1 flex flex-col gap-3 sm:gap-5 justify-center py-2">
+
+    <!-- Players Cards Container -->
+    <div id="playersContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2"></div>
+
+    <!-- Current Turn Status -->
+    <div class="p-3 sm:p-4 rounded-2xl bg-zinc-900/90 border border-amber-500/30 flex justify-between items-center relative overflow-hidden">
+      <div id="entryOverlay" class="absolute inset-0 bg-red-950/80 backdrop-blur-[2px] hidden items-center justify-center z-10">
+        <div class="flex items-center gap-2 text-red-300 font-bold text-xs sm:text-sm">
+          <i data-lucide="lock" class="w-4 h-4"></i>
+          <span>Apertura richiesta: 500pt in un turno</span>
+        </div>
+      </div>
+
+      <div>
+        <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block">Punti Turno</span>
+        <div class="text-2xl sm:text-3xl font-black text-amber-300 font-display flex items-center gap-1.5">
+          <span id="turnScoreTotal">0</span>
+          <span id="pendingSelectionBadge" class="text-xs font-normal text-emerald-400 hidden">(+0)</span>
+        </div>
+      </div>
+      <div class="text-right">
+        <span class="text-[10px] text-zinc-400 block">Dadi Disponibili</span>
+        <span class="text-xs sm:text-sm font-bold text-zinc-200" id="availableDiceCount">5 su 5</span>
+      </div>
+    </div>
+
+    <!-- Felt Table -->
+    <div class="felt-table rounded-3xl p-4 sm:p-8 relative overflow-hidden flex flex-col items-center justify-center min-h-[260px] sm:min-h-[310px]">
+      
+      <div class="absolute inset-0 pointer-events-none flex items-center justify-center opacity-5 select-none font-display font-black text-8xl sm:text-[13rem] tracking-widest text-white uppercase">
+        ZONG
+      </div>
+
+      <div id="statusPill" class="mb-3 sm:mb-5 px-3 py-1 rounded-full text-xs font-semibold bg-zinc-900/90 border border-zinc-700/60 text-zinc-300 flex items-center gap-2 shadow z-10">
+        <i data-lucide="dices" class="w-3.5 h-3.5 text-amber-400"></i>
+        <span id="statusMessage">Premi "Lancia Dadi"</span>
+      </div>
+
+      <!-- Dice Row -->
+      <div class="flex flex-wrap justify-center items-center gap-3 sm:gap-5 z-10 py-1">
+        <div class="dice-container transition-all duration-200" data-index="0">
+          <div class="dice-scene"><div class="cube" id="cube-0">
+            <div class="cube-face f1"><div class="pip col-start-2 row-start-2"></div></div>
+            <div class="cube-face f2"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f3"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f4"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f5"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f6"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-1 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-3 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+          </div></div><div class="dice-sub text-[9px] text-center font-bold text-zinc-500 mt-1 uppercase">Libero</div>
+        </div>
+        <div class="dice-container transition-all duration-200" data-index="1">
+          <div class="dice-scene"><div class="cube" id="cube-1">
+            <div class="cube-face f1"><div class="pip col-start-2 row-start-2"></div></div>
+            <div class="cube-face f2"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f3"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f4"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f5"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f6"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-1 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-3 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+          </div></div><div class="dice-sub text-[9px] text-center font-bold text-zinc-500 mt-1 uppercase">Libero</div>
+        </div>
+        <div class="dice-container transition-all duration-200" data-index="2">
+          <div class="dice-scene"><div class="cube" id="cube-2">
+            <div class="cube-face f1"><div class="pip col-start-2 row-start-2"></div></div>
+            <div class="cube-face f2"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f3"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f4"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f5"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f6"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-1 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-3 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+          </div></div><div class="dice-sub text-[9px] text-center font-bold text-zinc-500 mt-1 uppercase">Libero</div>
+        </div>
+        <div class="dice-container transition-all duration-200" data-index="3">
+          <div class="dice-scene"><div class="cube" id="cube-3">
+            <div class="cube-face f1"><div class="pip col-start-2 row-start-2"></div></div>
+            <div class="cube-face f2"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f3"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f4"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f5"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f6"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-1 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-3 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+          </div></div><div class="dice-sub text-[9px] text-center font-bold text-zinc-500 mt-1 uppercase">Libero</div>
+        </div>
+        <div class="dice-container transition-all duration-200" data-index="4">
+          <div class="dice-scene"><div class="cube" id="cube-4">
+            <div class="cube-face f1"><div class="pip col-start-2 row-start-2"></div></div>
+            <div class="cube-face f2"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f3"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f4"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f5"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f6"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-1 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-3 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+          </div></div><div class="dice-sub text-[9px] text-center font-bold text-zinc-500 mt-1 uppercase">Libero</div>
+        </div>
+      </div>
+
+      <div id="selectionPill" class="mt-3 text-xs font-semibold text-amber-300 min-h-[18px] text-center px-2 z-10"></div>
+    </div>
+
+    <!-- Special Split Button -->
+    <div id="specialActions" class="hidden flex justify-center -my-1 z-20">
+      <button id="btnSplit5s" class="py-2.5 px-5 rounded-xl bg-purple-600 border border-purple-400 text-white font-bold text-xs shadow-lg flex items-center gap-2">
+        <i data-lucide="scissors" class="w-4 h-4"></i>
+        <span>Unisci i due 5 (+100pt, salva 1 dado!)</span>
+      </button>
+    </div>
+
+    <!-- Actions Buttons -->
+    <div id="actionButtons" class="flex gap-2">
+      <button id="btnRoll" class="flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-zinc-950 font-black text-base font-display flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition">
+        <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+        <span id="btnRollText">Lancia Dadi</span>
+      </button>
+
+      <button id="btnBank" disabled class="flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-black text-base font-display flex items-center justify-center gap-1.5 opacity-40 cursor-not-allowed transition">
+        <i data-lucide="shield-check" class="w-4 h-4"></i>
+        <span id="btnBankText">Incassa</span>
+      </button>
+    </div>
+
+    <!-- Inherit Buttons -->
+    <div id="inheritButtons" class="hidden flex gap-2">
+      <button id="btnInherit" class="flex-1 py-3.5 px-4 rounded-xl bg-blue-600 text-white font-black text-sm font-display flex items-center justify-center gap-1.5 shadow-lg">
+        <i data-lucide="handshake" class="w-4 h-4"></i>
+        <span id="btnInheritText">Eredita</span>
+      </button>
+
+      <button id="btnResetRoll" class="flex-1 py-3.5 px-4 rounded-xl bg-zinc-800 text-zinc-300 border border-zinc-700 font-bold text-xs font-display flex items-center justify-center gap-1">
+        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        <span>Rifiuta (5 dadi)</span>
+      </button>
+    </div>
+
+    <!-- History Log -->
+    <div class="rounded-xl bg-zinc-900/70 border border-zinc-800 p-3">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+          <i data-lucide="history" class="w-3.5 h-3.5 text-amber-400"></i> Cronologia
+        </span>
+        <span class="text-[10px] text-zinc-500" id="roundCounter">Turno 1</span>
+      </div>
+      <div id="logContainer" class="h-16 overflow-y-auto space-y-0.5 text-[11px] text-zinc-300 font-mono">
+        <p class="text-zinc-500 italic" id="logInitialText">Pronti. Obiettivo 10.000 punti!</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- FOOTER PERSONALIZZATO -->
+  <footer class="w-full text-center py-3 border-t border-zinc-900 text-zinc-500 text-xs font-medium tracking-wide">
+    ZONG • Creato da Tex Willa
+  </footer>
+
+  <!-- MODAL IMPOSTA PUNTEGGIO MASSIMO -->
+  <div id="targetScoreModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-xs w-full shadow-2xl">
+      <div class="flex items-center gap-2 mb-2 text-amber-400">
+        <i data-lucide="target" class="w-5 h-5"></i>
+        <h3 class="text-base font-bold text-white font-display">Punteggio Finale</h3>
+      </div>
+      <p class="text-xs text-zinc-400 mb-3">Scegli o inserisci il punteggio necessario per vincere la partita:</p>
+      
+      <!-- Preset Buttons -->
+      <div class="grid grid-cols-2 gap-2 mb-3">
+        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="5000">5.000 pt</button>
+        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="10000">10.000 pt</button>
+        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="15000">15.000 pt</button>
+        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="20000">20.000 pt</button>
+      </div>
+
+      <input id="targetScoreInput" type="number" min="1000" step="500" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-white font-semibold text-sm focus:outline-none focus:border-amber-400 mb-4" placeholder="Valore personalizzato" />
+      <div class="flex gap-2">
+        <button id="btnCancelTargetScore" class="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs">Annulla</button>
+        <button id="btnSaveTargetScore" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs">Conferma</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL MODIFICA NOME GIOCATORE -->
+  <div id="nameModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-xs w-full shadow-2xl">
+      <div class="flex items-center gap-2 mb-2 text-amber-400">
+        <i data-lucide="pencil" class="w-4 h-4"></i>
+        <h3 class="text-base font-bold text-white font-display">Modifica Nome</h3>
+      </div>
+      <p class="text-xs text-zinc-400 mb-3" id="nameModalSubtitle">Inserisci il nome:</p>
+      <input id="playerNameInput" type="text" maxlength="12" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-white font-semibold text-sm focus:outline-none focus:border-amber-400 mb-4" />
+      <div class="flex gap-2">
+        <button id="btnCancelName" class="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs">Annulla</button>
+        <button id="btnSaveName" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs">Salva</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ZONG MODAL -->
+  <div id="zongModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-gradient-to-b from-red-950 via-zinc-950 to-black border-2 border-red-600 rounded-3xl p-6 max-w-xs w-full text-center glow-red zong-animate">
+      <div class="w-14 h-14 mx-auto mb-2 rounded-full bg-red-600/20 border border-red-500/50 flex items-center justify-center text-red-500">
+        <i data-lucide="skull" class="w-8 h-8"></i>
+      </div>
+      <h2 class="text-4xl font-black text-red-500 font-display mb-1">ZONG!</h2>
+      <p class="text-xs text-zinc-300 mb-4">Nessun punto valido. Turno perso!</p>
+      <button id="btnCloseZong" class="w-full py-3 rounded-xl bg-red-600 text-white font-bold text-sm">Passa il Turno</button>
+    </div>
+  </div>
+
+  <!-- WIN MODAL -->
+  <div id="winModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-gradient-to-b from-amber-950 via-zinc-950 to-black border-2 border-amber-500 rounded-3xl p-6 max-w-xs w-full text-center glow-gold">
+      <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center text-amber-400">
+        <i data-lucide="trophy" class="w-8 h-8"></i>
+      </div>
+      <h2 class="text-2xl font-black text-amber-400 font-display" id="winnerTitle">VITTORIA!</h2>
+      <p class="text-xs text-zinc-300 my-2" id="winnerSubtitle">Vittoria!</p>
+      <button id="btnRestartWin" class="w-full py-3 rounded-xl bg-amber-500 text-zinc-950 font-bold text-sm mt-3">Nuova Partita</button>
+    </div>
+  </div>
+
+  <!-- RULES MODAL -->
+  <div id="rulesModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-md w-full max-h-[80vh] flex flex-col">
+      <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
+        <h3 class="text-base font-bold text-white font-display">Regole ZONG (5 Dadi)</h3>
+        <button id="btnCloseRules" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="overflow-y-auto space-y-3 py-3 text-xs text-zinc-300">
+        <p>• <strong>Singoli:</strong> 1 = 100 pt, 5 = 50 pt</p>
+        <p>• <strong>Tris:</strong> Tris di 1 = 1000 pt, Tris da 2 a 6 = valore x 100 pt</p>
+        <p>• <strong>Quaterna:</strong> 2x Tris | <strong>Cinquina:</strong> 4x Tris</p>
+        <p>• <strong>Scala (1-5 o 2-6):</strong> 1500 pt</p>
+        <p>• <strong>Apertura:</strong> Minimo 500 pt in un turno per registrare punti sul tabellone.</p>
+        <p>• <strong>✨ Sei Magico:</strong> Se resta 1 solo dado ed esce 6, non perdi con Zong! Guadagni 0 pt ma sblocchi l'Hot Dice rilanciando tutti i 5 dadi.</p>
+        <p>• <strong>✂️ Due Cinque:</strong> Uniscili per accantonare solo un 5 guadagnando 100 pt e tenendo l'altro libero per il tiro successivo.</p>
+      </div>
+      <button id="btnGotItRules" class="w-full py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs mt-2">Chiudi</button>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD MODAL -->
+  <div id="leaderboardModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-sm w-full">
+      <div class="flex items-center justify-between pb-2 border-b border-zinc-800 mb-3">
+        <h3 class="text-base font-bold text-white font-display">Classifica</h3>
+        <button id="btnCloseLeaderboard"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div id="leaderboardContainer" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- RECORD TURNO MODAL (NUOVA FINESTRA CLASSIFICA RECORD) -->
+  <div id="recordModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-sm w-full shadow-2xl">
+      <div class="flex items-center justify-between pb-2 border-b border-zinc-800 mb-3">
+        <div class="flex items-center gap-2 text-amber-400">
+          <i data-lucide="trophy" class="w-5 h-5"></i>
+          <h3 class="text-base font-bold text-white font-display">Classifica Record Turni</h3>
+        </div>
+        <button id="btnCloseRecordModal" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <p class="text-[11px] text-zinc-400 mb-3">I migliori punteggi realizzati in un singolo turno dai giocatori nella stanza.</p>
+      <div id="recordModalContainer" class="space-y-2 max-h-[60vh] overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <script>
+    let _hapticLabel = null;
+    let _lastIosTick = 0;
+    function iosTick() {
+      try {
+        const now = Date.now();
+        if (now - _lastIosTick < 60) return;
+        _lastIosTick = now;
+        if (!_hapticLabel) {
+          const input = document.createElement('input');
+          input.type = 'checkbox';
+          input.setAttribute('switch', '');
+          input.tabIndex = -1;
+          _hapticLabel = document.createElement('label');
+          _hapticLabel.setAttribute('aria-hidden', 'true');
+          _hapticLabel.style.display = 'none';
+          _hapticLabel.appendChild(input);
+          document.body.appendChild(_hapticLabel);
+        }
+        _hapticLabel.click();
+      } catch (e) {}
+    }
+
+    function triggerHaptic(duration = 35) {
+      try {
+        if (typeof navigator.vibrate === 'function') {
+          navigator.vibrate(duration);
+          return;
+        }
+        if (Array.isArray(duration)) {
+          let t = 0;
+          duration.forEach((ms, i) => {
+            if (i % 2 === 0) setTimeout(iosTick, t);
+            t += ms;
+          });
+        } else {
+          iosTick();
+        }
+      } catch (e) {}
+    }
+
+    class SoundEngine {
+      constructor() { this.ctx = null; this.enabled = true; }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      }
+      playClick() {
+        if (!this.enabled) return;
+        this.init();
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(150, this.ctx.currentTime + 0.05);
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.05);
+        } catch (e) {}
+      }
+      playDiceRoll() {
+        if (!this.enabled) return;
+        this.init();
+        try {
+          for (let i = 0; i < 6; i++) {
+            const time = this.ctx.currentTime + i * 0.07;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(180 + Math.random() * 220, time);
+            gain.gain.setValueAtTime(0.2, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(time);
+            osc.stop(time + 0.06);
+          }
+        } catch (e) {}
+      }
+      playBank() {
+        if (!this.enabled) return;
+        this.init();
+        try {
+          [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+            const time = this.ctx.currentTime + idx * 0.08;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, time);
+            gain.gain.setValueAtTime(0.2, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(time);
+            osc.stop(time + 0.2);
+          });
+        } catch (e) {}
+      }
+      playZong() {
+        if (!this.enabled) return;
+        this.init();
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(50, this.ctx.currentTime + 0.5);
+          gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.52);
+        } catch (e) {}
+      }
+      playVictory() {
+        if (!this.enabled) return;
+        this.init();
+        try {
+          [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+            const t = this.ctx.currentTime + i * 0.12;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, t);
+            gain.gain.setValueAtTime(0.25, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.27);
+          });
+        } catch (e) {}
+      }
+    }
+    const sound = new SoundEngine();
+
+    let TARGET_SCORE = 10000;
+    const GameState = {
+      numPlayers: 1, 
+      activePlayer: 1, 
+      playerNames: { 1: "Giocatore 1", 2: "Giocatore 2", 3: "Giocatore 3", 4: "Giocatore 4", 5: "Giocatore 5", 6: "Giocatore 6", 7: "Giocatore 7", 8: "Giocatore 8", 9: "Giocatore 9", 10: "Giocatore 10" },
+      scores: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0 },
+      hasEntered: { 1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false, 9: false, 10: false },
+      
+      // Record singolo turno pulito per ciascun giocatore
+      playerTurnRecords: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0 },
+      isCleanTurn: true,
+
+      round: 1,
+      phase: 'ready',
+      dice: [
+        { value: 1, status: 'free' },
+        { value: 2, status: 'free' },
+        { value: 3, status: 'free' },
+        { value: 4, status: 'free' },
+        { value: 5, status: 'free' },
+      ],
+      turnAccumulatedScore: 0, 
+      inheritedScore: 0,       
+      securedInSubTurn: false,
+    };
+
+    let editingPlayerId = 1;
+
+    function getPlayerName(id) {
+      return GameState.playerNames[id] || `Giocatore ${id}`;
+    }
+
+    function getCounts(diceValues) {
+      const counts = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0};
+      diceValues.forEach(val => { if (counts[val] !== undefined) counts[val]++; });
+      return counts;
+    }
+
+    function evaluateSelection(selectedValues) {
+      if (!selectedValues || selectedValues.length === 0) return { score: 0, isValid: false, description: "" };
+
+      const totalDice = selectedValues.length;
+      const counts = getCounts(selectedValues);
+      let score = 0;
+      let usedDiceCount = 0;
+      const reasons = [];
+
+      const bankedCount = GameState.dice.filter(d => d.status === 'banked').length;
+      if (totalDice === 1 && selectedValues[0] === 6 && bankedCount === 4) {
+        return { score: 0, isValid: true, description: "✨ Sei Magico! (Salvezza Zong)", isMagicSix: true };
+      }
+
+      if (totalDice === 5) {
+        const sorted = [...selectedValues].sort((a,b)=>a-b).join('');
+        if (sorted === "12345" || sorted === "23456") {
+          return { score: 1500, isValid: true, description: "Scala (1500 pt)" };
+        }
+      }
+
+      for (let num = 1; num <= 6; num++) {
+        if (counts[num] === 5) {
+          const baseTris = (num === 1) ? 1000 : (num * 100);
+          const pts = baseTris * 4; 
+          return { score: pts, isValid: true, description: `Cinquina di ${num} (${pts} pt)` };
+        }
+      }
+
+      for (let num = 1; num <= 6; num++) {
+        if (counts[num] >= 4) {
+          const baseTris = (num === 1) ? 1000 : (num * 100);
+          const pts = baseTris * 2; 
+          score += pts;
+          usedDiceCount += 4;
+          counts[num] -= 4;
+          reasons.push(`Quaterna di ${num} (${pts} pt)`);
+        }
+      }
+
+      for (let num = 1; num <= 6; num++) {
+        if (counts[num] >= 3) {
+          const pts = (num === 1) ? 1000 : (num * 100);
+          score += pts;
+          usedDiceCount += 3;
+          counts[num] -= 3;
+          reasons.push(`Tris di ${num} (${pts} pt)`);
+        }
+      }
+
+      if (counts[1] > 0) {
+        const pts = counts[1] * 100;
+        score += pts;
+        usedDiceCount += counts[1];
+        reasons.push(`${counts[1]}x Uno (${pts} pt)`);
+      }
+      if (counts[5] > 0) {
+        const pts = counts[5] * 50;
+        score += pts;
+        usedDiceCount += counts[5];
+        reasons.push(`${counts[5]}x Cinque (${pts} pt)`);
+      }
+
+      const isValid = (usedDiceCount === totalDice) && (score > 0);
+      return {
+        score: isValid ? score : 0,
+        isValid: isValid,
+        description: isValid ? reasons.join(" + ") : "Dadi non validi selezionati"
+      };
+    }
+
+    function hasAnyScoringCombination(availableValues, activeBankedCount) {
+      if (!availableValues || availableValues.length === 0) return false;
+      if (availableValues.length === 1 && availableValues[0] === 6 && activeBankedCount === 4) return true;
+
+      const counts = getCounts(availableValues);
+      if (counts[1] > 0 || counts[5] > 0) return true;
+      for (let n = 2; n <= 6; n++) { if (counts[n] >= 3) return true; }
+      if (availableValues.length === 5) {
+        const sorted = [...availableValues].sort((a,b)=>a-b).join('');
+        if (sorted === "12345" || sorted === "23456") return true;
+      }
+      return false;
+    }
+
+    const faceRotations = {
+      1: { x: 0, y: 0 }, 2: { x: 0, y: 90 }, 3: { x: 90, y: 0 },
+      4: { x: -90, y: 0 }, 5: { x: 0, y: -90 }, 6: { x: 0, y: 180 }
+    };
+
+    const cubeElements = [0,1,2,3,4].map(i => document.getElementById(`cube-${i}`));
+    const diceContainers = document.querySelectorAll('.dice-container');
+    const actionButtons = document.getElementById('actionButtons');
+    const inheritButtons = document.getElementById('inheritButtons');
+    const specialActions = document.getElementById('specialActions');
+    const btnRoll = document.getElementById('btnRoll');
+    const btnRollText = document.getElementById('btnRollText');
+    const btnBank = document.getElementById('btnBank');
+    const btnBankText = document.getElementById('btnBankText');
+    const btnInherit = document.getElementById('btnInherit');
+    const btnInheritText = document.getElementById('btnInheritText');
+    const btnResetRoll = document.getElementById('btnResetRoll');
+    const btnNewGame = document.getElementById('btnNewGame');
+    const btnSound = document.getElementById('btnSound');
+    const btnRules = document.getElementById('btnRules');
+    const btnGotItRules = document.getElementById('btnGotItRules');
+    const btnCloseRules = document.getElementById('btnCloseRules');
+    const rulesModal = document.getElementById('rulesModal');
+    const btnLeaderboard = document.getElementById('btnLeaderboard');
+    const btnCloseLeaderboard = document.getElementById('btnCloseLeaderboard');
+    const leaderboardModal = document.getElementById('leaderboardModal');
+    const leaderboardContainer = document.getElementById('leaderboardContainer');
+    
+    // Riferimenti per la nuova Modale Classifica Record Turno
+    const btnRecordModal = document.getElementById('btnRecordModal');
+    const recordModal = document.getElementById('recordModal');
+    const btnCloseRecordModal = document.getElementById('btnCloseRecordModal');
+    const recordModalContainer = document.getElementById('recordModalContainer');
+
+    // Riferimenti per la Modale Target Score
+    const btnTargetScore = document.getElementById('btnTargetScore');
+    const targetScoreDisplay = document.getElementById('targetScoreDisplay');
+    const targetScoreModal = document.getElementById('targetScoreModal');
+    const targetScoreInput = document.getElementById('targetScoreInput');
+    const btnSaveTargetScore = document.getElementById('btnSaveTargetScore');
+    const btnCancelTargetScore = document.getElementById('btnCancelTargetScore');
+    const logInitialText = document.getElementById('logInitialText');
+
+    const zongModal = document.getElementById('zongModal');
+    const btnCloseZong = document.getElementById('btnCloseZong');
+    const winModal = document.getElementById('winModal');
+    const btnRestartWin = document.getElementById('btnRestartWin');
+    const btnPlayers = document.getElementById('btnPlayers');
+    const btnPlayersText = document.getElementById('btnPlayersText');
+    const btnSplit5s = document.getElementById('btnSplit5s');
+    const playersContainer = document.getElementById('playersContainer');
+    const turnScoreTotalEl = document.getElementById('turnScoreTotal');
+    const pendingSelectionBadge = document.getElementById('pendingSelectionBadge');
+    const availableDiceCountEl = document.getElementById('availableDiceCount');
+    const statusMessageEl = document.getElementById('statusMessage');
+    const selectionPillEl = document.getElementById('selectionPill');
+    const logContainer = document.getElementById('logContainer');
+    const roundCounterEl = document.getElementById('roundCounter');
+
+    // Modale Modifica Nome
+    const nameModal = document.getElementById('nameModal');
+    const playerNameInput = document.getElementById('playerNameInput');
+    const btnSaveName = document.getElementById('btnSaveName');
+    const btnCancelName = document.getElementById('btnCancelName');
+    const nameModalSubtitle = document.getElementById('nameModalSubtitle');
+
+    function openNameModal(playerId) {
+      editingPlayerId = playerId;
+      nameModalSubtitle.textContent = `Nuovo nome per Giocatore ${playerId}:`;
+      playerNameInput.value = GameState.playerNames[playerId] || `Giocatore ${playerId}`;
+      nameModal.classList.remove('hidden');
+      setTimeout(() => playerNameInput.focus(), 100);
+    }
+
+    function savePlayerName() {
+      const val = playerNameInput.value.trim();
+      if (val) {
+        GameState.playerNames[editingPlayerId] = val;
+        try { localStorage.setItem('zong_player_names', JSON.stringify(GameState.playerNames)); } catch(e) {}
+        nameModal.classList.add('hidden');
+        updateUI();
+      }
+    }
+
+    function openTargetScoreModal() {
+      targetScoreInput.value = TARGET_SCORE;
+      targetScoreModal.classList.remove('hidden');
+      setTimeout(() => targetScoreInput.focus(), 100);
+    }
+
+    function saveTargetScore(newScore) {
+      const parsed = parseInt(newScore, 10);
+      if (!isNaN(parsed) && parsed >= 1000) {
+        TARGET_SCORE = parsed;
+        try { localStorage.setItem('zong_target_score', TARGET_SCORE.toString()); } catch(e) {}
+        targetScoreModal.classList.add('hidden');
+        if (targetScoreDisplay) {
+          targetScoreDisplay.textContent = `${TARGET_SCORE.toLocaleString('it-IT')} pt`;
+        }
+        if (logInitialText) {
+          logInitialText.textContent = `Pronti. Obiettivo ${TARGET_SCORE.toLocaleString('it-IT')} punti!`;
+        }
+        addLog(`🎯 Punteggio finale impostato a ${TARGET_SCORE.toLocaleString('it-IT')} pt`, true);
+        updateUI();
+      }
+    }
+
+    function addLog(text, highlight = false, isZong = false) {
+      const p = document.createElement('p');
+      p.className = `leading-relaxed ${highlight ? 'text-amber-300 font-bold' : isZong ? 'text-red-400 font-bold' : 'text-zinc-300'}`;
+      p.innerHTML = text;
+      logContainer.prepend(p);
+    }
+
+    function initScoreboard() {
+      if(!playersContainer) return;
+      playersContainer.innerHTML = '';
+      const totalCards = GameState.numPlayers;
+      for(let i=1; i<=totalCards; i++) {
+        const card = document.createElement('div');
+        card.id = `cardP${i}`;
+        const barColor = i === 1 ? 'bg-amber-400' : (i === 2 ? 'bg-blue-500' : (i === 3 ? 'bg-emerald-500' : (i === 4 ? 'bg-purple-500' : (i === 5 ? 'bg-rose-500' : (i === 6 ? 'bg-cyan-500' : (i === 7 ? 'bg-orange-500' : (i === 8 ? 'bg-indigo-500' : (i === 9 ? 'bg-teal-500' : 'bg-pink-500'))))))));
+        
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <button type="button" class="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-left hover:text-amber-300 transition overflow-hidden text-ellipsis whitespace-nowrap" id="btnNameP${i}">
+              <span id="labelP${i}" class="truncate max-w-[85px]"></span>
+              <i data-lucide="pencil" class="w-2.5 h-2.5 text-zinc-500 shrink-0"></i>
+            </button>
+          </div>
+          <div class="flex items-baseline justify-between mt-1">
+            <span class="text-lg sm:text-xl font-extrabold text-white font-display" id="scoreP${i}">0</span>
+            <span class="text-[9px] text-amber-400/90 font-semibold" id="recP${i}" title="Record Turno Singolo Pulito">🥇 0 pt</span>
+          </div>
+          <div class="w-full bg-zinc-800 rounded-full h-1 mt-1 overflow-hidden">
+            <div id="barP${i}" class="${barColor} h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        `;
+        playersContainer.appendChild(card);
+        card.querySelector(`#btnNameP${i}`).addEventListener('click', () => openNameModal(i));
+      }
+    }
+
+    function updateUI() {
+      const totalCards = GameState.numPlayers;
+      for(let i=1; i<=totalCards; i++) {
+        const cardEl = document.getElementById(`cardP${i}`);
+        const labelEl = document.getElementById(`labelP${i}`);
+        const scoreEl = document.getElementById(`scoreP${i}`);
+        const barEl = document.getElementById(`barP${i}`);
+        const recEl = document.getElementById(`recP${i}`);
+        if(!cardEl) continue;
+
+        let currentScore = GameState.scores[i];
+        labelEl.innerHTML = (GameState.activePlayer === i ? '● ' : '') + getPlayerName(i);
+        labelEl.className = GameState.activePlayer === i ? "text-[10px] font-bold uppercase text-amber-400" : "text-[10px] font-bold uppercase text-zinc-400";
+
+        scoreEl.textContent = currentScore;
+
+        if (recEl) {
+          recEl.textContent = `🏆 ${GameState.playerTurnRecords[i] || 0} pt`;
+        }
+
+        barEl.style.width = Math.min(100, (currentScore / TARGET_SCORE) * 100) + '%';
+        cardEl.className = "relative p-2 rounded-xl border transition-all " + 
+          (GameState.activePlayer === i ? "bg-zinc-900 border-amber-500/80 scale-[1.02] shadow" : "bg-zinc-900/40 border-zinc-800 opacity-60");
+      }
+
+      if (btnPlayersText) btnPlayersText.textContent = GameState.numPlayers === 1 ? "1 Gioc." : `${GameState.numPlayers} Gioc.`;
+      if (targetScoreDisplay) targetScoreDisplay.textContent = `${TARGET_SCORE.toLocaleString('it-IT')} pt`;
+
+      renderLeaderboard();
+      renderRecordModalList();
+
+      const selectedIndices = [];
+      const selectedValues = [];
+      let freeCount = 0;
+      let bankedCount = 0;
+      let forcedFreeCount = 0;
+
+      GameState.dice.forEach((d, idx) => {
+        if (d.status === 'selected') {
+          selectedIndices.push(idx);
+          selectedValues.push(d.value);
+        } else if (d.status === 'free') freeCount++;
+        else if (d.status === 'forced_free') forcedFreeCount++;
+        else if (d.status === 'banked') bankedCount++;
+      });
+
+      const evalResult = evaluateSelection(selectedValues);
+      const counts = getCounts(selectedValues);
+      if (counts[5] === 2 && GameState.phase === 'rolled' && selectedValues.length === 2) {
+        specialActions.classList.remove('hidden');
+      } else {
+        specialActions.classList.add('hidden');
+      }
+
+      if (selectedValues.length > 0) {
+        pendingSelectionBadge.classList.remove('hidden');
+        if (evalResult.isValid) {
+          pendingSelectionBadge.className = 'text-xs font-bold text-emerald-400';
+          pendingSelectionBadge.textContent = `(+${evalResult.score})`;
+          selectionPillEl.textContent = `${evalResult.description}`;
+          selectionPillEl.className = 'mt-3 text-xs font-bold text-emerald-400 z-10';
+        } else {
+          pendingSelectionBadge.className = 'text-xs font-bold text-red-400';
+          pendingSelectionBadge.textContent = `(Non valido)`;
+          selectionPillEl.textContent = evalResult.description;
+          selectionPillEl.className = 'mt-3 text-xs font-semibold text-rose-400 z-10';
+        }
+      } else {
+        pendingSelectionBadge.classList.add('hidden');
+        selectionPillEl.textContent = GameState.phase === 'rolled' ? 'Tocca i dadi per selezionarli' : '';
+        selectionPillEl.className = 'mt-3 text-xs font-normal text-zinc-400 z-10';
+      }
+
+      let totalTurnPoints = 0;
+      if (GameState.phase === 'inherit_choice') {
+        turnScoreTotalEl.textContent = GameState.inheritedScore;
+      } else {
+        totalTurnPoints = GameState.turnAccumulatedScore + (evalResult.isValid ? evalResult.score : 0);
+        turnScoreTotalEl.textContent = totalTurnPoints;
+      }
+
+      availableDiceCountEl.textContent = `${freeCount + forcedFreeCount + selectedValues.length} su 5`;
+
+      const entryOverlay = document.getElementById('entryOverlay');
+      if (!GameState.hasEntered[GameState.activePlayer] && GameState.phase !== 'inherit_choice' && GameState.phase !== 'ready') {
+        entryOverlay.classList.remove('hidden');
+        entryOverlay.classList.add('flex');
+        entryOverlay.querySelector('span').textContent = `Apertura richiesta: ${totalTurnPoints}/500 pt`;
+      } else {
+        entryOverlay.classList.add('hidden');
+        entryOverlay.classList.remove('flex');
+      }
+
+      if (GameState.phase === 'inherit_choice') {
+        actionButtons.classList.add('hidden');
+        inheritButtons.classList.remove('hidden');
+        inheritButtons.classList.add('flex');
+        let totalFree = GameState.dice.filter(d => d.status === 'free' || d.status === 'forced_free').length;
+        btnInheritText.textContent = `Eredita ${GameState.inheritedScore} pt (${totalFree} dadi)`;
+      } else {
+        inheritButtons.classList.add('hidden');
+        inheritButtons.classList.remove('flex');
+        actionButtons.classList.remove('hidden');
+        actionButtons.classList.add('flex');
+
+        if (GameState.phase === 'ready') {
+          btnRoll.disabled = false;
+          btnRoll.classList.remove('opacity-50', 'cursor-not-allowed');
+          btnRollText.textContent = "Lancia i 5 Dadi";
+          btnBank.disabled = true;
+          btnBank.classList.add('opacity-40', 'cursor-not-allowed');
+        } else if (GameState.phase === 'rolling') {
+          btnRoll.disabled = true;
+          btnRoll.classList.add('opacity-50', 'cursor-not-allowed');
+          btnRollText.textContent = "Lancio...";
+          btnBank.disabled = true;
+          btnBank.classList.add('opacity-40', 'cursor-not-allowed');
+        } else if (GameState.phase === 'rolled') {
+          const canProceed = (evalResult.isValid && evalResult.score > 0) || evalResult.isMagicSix || GameState.securedInSubTurn;
+          const remainingToRoll = freeCount + forcedFreeCount;
+          
+          if (canProceed) {
+            btnRoll.disabled = false;
+            btnRoll.classList.remove('opacity-50', 'cursor-not-allowed');
+            btnRollText.textContent = remainingToRoll === 0 ? "HOT DICE! Rilancia 5 Dadi" : `Rilancia (${remainingToRoll})`;
+
+            if (!GameState.hasEntered[GameState.activePlayer] && totalTurnPoints < 500) {
+              btnBank.disabled = true;
+              btnBank.classList.add('opacity-40', 'cursor-not-allowed');
+              btnBankText.textContent = `Apertura (${totalTurnPoints}/500)`;
+            } else {
+              btnBank.disabled = false;
+              btnBank.classList.remove('opacity-40', 'cursor-not-allowed');
+              btnBankText.textContent = "Incassa";
+            }
+          } else {
+            btnRoll.disabled = true;
+            btnRoll.classList.add('opacity-50', 'cursor-not-allowed');
+            btnRollText.textContent = "Seleziona Punti";
+            btnBank.disabled = true;
+            btnBank.classList.add('opacity-40', 'cursor-not-allowed');
+          }
+        }
+      }
+
+      GameState.dice.forEach((d, idx) => {
+        const container = diceContainers[idx];
+        const sub = container.querySelector('.dice-sub');
+        container.className = 'dice-container transition-all duration-200';
+        if (d.status === 'selected') {
+          container.classList.add('selected');
+          sub.textContent = 'Preso';
+          sub.className = 'dice-sub text-[9px] text-center font-bold text-amber-400 mt-1 uppercase';
+        } else if (d.status === 'banked') {
+          container.classList.add('banked');
+          sub.textContent = 'Bloccato';
+          sub.className = 'dice-sub text-[9px] text-center font-bold text-blue-400 mt-1 uppercase';
+        } else if (d.status === 'forced_free') {
+          container.classList.add('forced_free');
+          sub.textContent = 'Lancio Obbl.';
+          sub.className = 'dice-sub text-[9px] text-center font-bold text-purple-400 mt-1 uppercase';
+        } else {
+          sub.textContent = 'In gioco';
+          sub.className = 'dice-sub text-[9px] text-center font-bold text-zinc-500 mt-1 uppercase';
+        }
+      });
+
+      roundCounterEl.textContent = `Turno ${GameState.round} • ${getPlayerName(GameState.activePlayer)}`;
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function renderLeaderboard() {
+      if (!leaderboardContainer) return;
+      leaderboardContainer.innerHTML = '';
+      const list = [];
+      for (let i = 1; i <= GameState.numPlayers; i++) {
+        list.push({ id: i, score: GameState.scores[i], isActive: GameState.activePlayer === i });
+      }
+      list.sort((a, b) => b.score - a.score);
+
+      list.forEach((p, idx) => {
+        const row = document.createElement('div');
+        row.className = `flex items-center justify-between p-2.5 rounded-xl border ${p.isActive ? 'bg-amber-500/10 border-amber-500/50' : 'bg-zinc-950 border-zinc-800'}`;
+        row.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-full flex items-center justify-center bg-zinc-800 text-xs font-bold">${idx + 1}</span>
+            <span class="text-xs font-bold ${p.isActive ? 'text-amber-400' : 'text-zinc-200'}">${getPlayerName(p.id)}</span>
+          </div>
+          <span class="text-sm font-black text-white">${p.score} pt</span>
+        `;
+        leaderboardContainer.appendChild(row);
+      });
+    }
+
+    function renderRecordModalList() {
+      if (!recordModalContainer) return;
+      recordModalContainer.innerHTML = '';
+      const list = [];
+      for (let i = 1; i <= GameState.numPlayers; i++) {
+        list.push({ id: i, record: GameState.playerTurnRecords[i] || 0 });
+      }
+      list.sort((a, b) => b.record - a.record);
+
+      list.forEach((p, idx) => {
+        const row = document.createElement('div');
+        row.className = `flex items-center justify-between p-2.5 rounded-xl border bg-zinc-950 border-zinc-800`;
+        row.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-full flex items-center justify-center bg-zinc-800 text-xs font-bold text-amber-400">${idx + 1}</span>
+            <span class="text-xs font-bold text-zinc-200">${getPlayerName(p.id)}</span>
+          </div>
+          <span class="text-sm font-black text-amber-300">🏆 ${p.record} pt</span>
+        `;
+        recordModalContainer.appendChild(row);
+      });
+    }
+
+    function applyCubeRotation(cubeEl, faceNumber) {
+      const rot = faceRotations[faceNumber] || { x: 0, y: 0 };
+      cubeEl.style.transform = `rotateX(${rot.x}deg) rotateY(${rot.y}deg)`;
+    }
+
+    function rollDice() {
+      if (GameState.phase === 'rolling') return;
+
+      if (GameState.phase === 'rolled') {
+        const selectedIndices = [];
+        const selectedValues = [];
+        GameState.dice.forEach((d, i) => {
+          if (d.status === 'selected') {
+            selectedIndices.push(i);
+            selectedValues.push(d.value);
+          }
+        });
+
+        if (selectedValues.length > 0) {
+          const evalResult = evaluateSelection(selectedValues);
+          if (!evalResult.isValid && !evalResult.isMagicSix) return;
+
+          GameState.turnAccumulatedScore += evalResult.score;
+          if (evalResult.score > 0) addLog(`${getPlayerName(GameState.activePlayer)} accantona ${selectedValues.join(',')} (+${evalResult.score} pt)`);
+          else if (evalResult.isMagicSix) addLog(`✨ Sei Magico sbloccato!`, true);
+
+          selectedIndices.forEach(i => { GameState.dice[i].status = 'banked'; });
+        }
+
+        const bankedCount = GameState.dice.filter(d => d.status === 'banked').length;
+        if (bankedCount === 5) {
+          sound.playVictory();
+          triggerHaptic(80);
+          addLog(`🔥 HOT DICE! Rilancia tutti i 5 dadi!`, true);
+          GameState.dice.forEach(d => d.status = 'free');
+        }
+      }
+
+      GameState.phase = 'rolling';
+      GameState.securedInSubTurn = false;
+      sound.playDiceRoll();
+      triggerHaptic(40);
+      updateUI();
+
+      const indicesToRoll = [];
+      GameState.dice.forEach((d, idx) => {
+        if (d.status === 'free' || d.status === 'forced_free') {
+          indicesToRoll.push(idx);
+          cubeElements[idx].classList.add('is-rolling');
+        }
+      });
+
+      if (indicesToRoll.length === 0) {
+        GameState.dice.forEach((d, idx) => {
+          d.status = 'free';
+          indicesToRoll.push(idx);
+          cubeElements[idx].classList.add('is-rolling');
+        });
+      }
+
+      statusMessageEl.textContent = "Lancio...";
+
+      setTimeout(() => {
+        const newlyRolledValues = [];
+        indicesToRoll.forEach(idx => {
+          const val = Math.floor(Math.random() * 6) + 1;
+          GameState.dice[idx].value = val;
+          GameState.dice[idx].status = 'free';
+          newlyRolledValues.push(val);
+          cubeElements[idx].classList.remove('is-rolling');
+          applyCubeRotation(cubeElements[idx], val);
+        });
+
+        GameState.phase = 'rolled';
+        const bankedCountNow = GameState.dice.filter(d => d.status === 'banked').length;
+        const hasScore = hasAnyScoringCombination(newlyRolledValues, bankedCountNow);
+
+        if (!hasScore) {
+          triggerZong(newlyRolledValues);
+        } else {
+          statusMessageEl.textContent = `Usciti: [ ${newlyRolledValues.join(', ')} ]`;
+          addLog(`Lancio: [ ${newlyRolledValues.join('-')} ]`);
+          updateUI();
+        }
+      }, 700);
+    }
+
+    function triggerZong(rolledValues) {
+      sound.playZong();
+      triggerHaptic(250);
+      GameState.turnAccumulatedScore = 0;
+      GameState.isCleanTurn = false;
+      addLog(`💥 ZONG! [ ${rolledValues.join('-')} ]`, false, true);
+      zongModal.classList.remove('hidden');
+    }
+
+    function endTurn() {
+      GameState.turnAccumulatedScore = 0;
+      GameState.inheritedScore = 0;
+      GameState.dice.forEach(d => d.status = 'free');
+
+      GameState.activePlayer++;
+      if (GameState.activePlayer > GameState.numPlayers) {
+        GameState.activePlayer = 1;
+        GameState.round++;
+      }
+      GameState.isCleanTurn = true;
+      GameState.phase = 'ready';
+      statusMessageEl.textContent = `Turno di ${getPlayerName(GameState.activePlayer)}`;
+      updateUI();
+    }
+
+    function bankPoints() {
+      if (GameState.phase !== 'rolled') return;
+
+      const selectedValues = [];
+      GameState.dice.forEach((d) => {
+        if (d.status === 'selected') selectedValues.push(d.value);
+      });
+
+      let finalTurnTotal = GameState.turnAccumulatedScore;
+      if (selectedValues.length > 0) {
+        const evalResult = evaluateSelection(selectedValues);
+        if (!evalResult.isValid) return;
+        finalTurnTotal += evalResult.score;
+      }
+
+      if (finalTurnTotal === 0) return;
+
+      if (!GameState.hasEntered[GameState.activePlayer]) {
+        if (finalTurnTotal < 500) return; 
+        GameState.hasEntered[GameState.activePlayer] = true;
+        addLog(`🔓 ${getPlayerName(GameState.activePlayer)} ha aperto (500+ pt)!`, true);
+      }
+
+      GameState.scores[GameState.activePlayer] += finalTurnTotal;
+      sound.playBank();
+      triggerHaptic(60);
+      addLog(`🏦 ${getPlayerName(GameState.activePlayer)} incassa ${finalTurnTotal} pt!`, true);
+
+      if (GameState.isCleanTurn) {
+        const currentRecord = GameState.playerTurnRecords[GameState.activePlayer] || 0;
+        if (finalTurnTotal > currentRecord) {
+          GameState.playerTurnRecords[GameState.activePlayer] = finalTurnTotal;
+          try {
+            localStorage.setItem('zong_player_turn_records', JSON.stringify(GameState.playerTurnRecords));
+          } catch(e) {}
+          addLog(`🔥 NUOVO RECORD DI TURNO per ${getPlayerName(GameState.activePlayer)}: ${finalTurnTotal} pt!`, true);
+        }
+      }
+
+      if (GameState.scores[GameState.activePlayer] >= TARGET_SCORE) {
+        triggerVictory(GameState.activePlayer, GameState.scores[GameState.activePlayer]);
+        return;
+      }
+
+      if (GameState.numPlayers === 1) {
+        endTurn();
+        return;
+      }
+
+      GameState.inheritedScore = finalTurnTotal;
+      GameState.dice.forEach(d => { if (d.status === 'selected') d.status = 'banked'; });
+      
+      let freeCount = GameState.dice.filter(d => d.status === 'free' || d.status === 'forced_free').length;
+      if (freeCount === 0) GameState.dice.forEach(d => d.status = 'free');
+
+      GameState.activePlayer++;
+      if (GameState.activePlayer > GameState.numPlayers) {
+        GameState.activePlayer = 1;
+        GameState.round++;
+      }
+
+      GameState.isCleanTurn = false;
+      GameState.phase = 'inherit_choice';
+      updateUI();
+    }
+
+    function triggerVictory(player, finalScore) {
+      sound.playVictory();
+      triggerHaptic([100, 50, 100, 50, 200]);
+      document.getElementById('winnerTitle').textContent = `VITTORIA!`;
+      document.getElementById('winnerSubtitle').textContent = `${getPlayerName(player)} ha trionfato raggiungendo ${finalScore} punti in ${GameState.round} turni!`;
+      winModal.classList.remove('hidden');
+    }
+
+    function onDiceClick(index) {
+      if (GameState.phase !== 'rolled') return;
+      const d = GameState.dice[index];
+      if (d.status === 'banked' || d.status === 'forced_free') return; 
+
+      sound.playClick();
+      triggerHaptic(20);
+      d.status = d.status === 'free' ? 'selected' : 'free';
+      updateUI();
+    }
+
+    function processSplitFives() {
+      if (GameState.phase !== 'rolled') return;
+      let firstFound = false;
+      GameState.dice.forEach(d => {
+        if (d.status === 'selected' && d.value === 5) {
+          if (!firstFound) {
+            d.status = 'banked'; 
+            firstFound = true;
+          } else {
+            d.status = 'forced_free'; 
+          }
+        }
+      });
+      
+      if (firstFound) {
+        GameState.turnAccumulatedScore += 100;
+        GameState.securedInSubTurn = true;
+        sound.playBank();
+        triggerHaptic(50);
+        addLog(`✂️ ${getPlayerName(GameState.activePlayer)} unisce due 5 (+100 pt)`, true);
+        GameState.dice.forEach(d => { if (d.status === 'selected') d.status = 'free'; });
+        updateUI();
+      }
+    }
+
+    function startNewGame() {
+      GameState.scores = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0 };
+      GameState.hasEntered = { 1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false, 9: false, 10: false };
+      GameState.turnAccumulatedScore = 0;
+      GameState.inheritedScore = 0;
+      GameState.activePlayer = 1;
+      GameState.round = 1;
+      GameState.isCleanTurn = true;
+      GameState.phase = 'ready';
+      GameState.dice = [
+        { value: 1, status: 'free' }, { value: 2, status: 'free' }, { value: 3, status: 'free' },
+        { value: 4, status: 'free' }, { value: 5, status: 'free' },
+      ];
+      GameState.dice.forEach((d, i) => applyCubeRotation(cubeElements[i], d.value));
+      logContainer.innerHTML = '';
+      addLog(`Nuova partita (${GameState.numPlayers} Giocatori). Obiettivo: ${TARGET_SCORE.toLocaleString('it-IT')} pt.`);
+      statusMessageEl.textContent = 'Premi "Lancia Dadi"';
+      initScoreboard();
+      updateUI();
+    }
+
+    window.onload = function () {
+      try {
+        const savedRecords = localStorage.getItem('zong_player_turn_records');
+        if (savedRecords) Object.assign(GameState.playerTurnRecords, JSON.parse(savedRecords));
+        const savedNames = localStorage.getItem('zong_player_names');
+        if (savedNames) Object.assign(GameState.playerNames, JSON.parse(savedNames));
+        const savedTargetScore = localStorage.getItem('zong_target_score');
+        if (savedTargetScore) TARGET_SCORE = parseInt(savedTargetScore, 10) || 10000;
+      } catch (e) {}
+
+      GameState.dice.forEach((d, i) => applyCubeRotation(cubeElements[i], d.value));
+      diceContainers.forEach((el, index) => el.addEventListener('click', () => onDiceClick(index)));
+
+      btnRoll.addEventListener('click', () => { sound.init(); rollDice(); });
+      btnBank.addEventListener('click', () => { bankPoints(); });
+      btnSplit5s.addEventListener('click', () => { processSplitFives(); });
+
+      btnInherit.addEventListener('click', () => {
+        sound.init();
+        GameState.turnAccumulatedScore = GameState.inheritedScore;
+        GameState.isCleanTurn = false;
+        GameState.phase = 'ready';
+        rollDice();
+      });
+
+      btnResetRoll.addEventListener('click', () => {
+        sound.init();
+        GameState.turnAccumulatedScore = 0;
+        GameState.inheritedScore = 0;
+        GameState.dice.forEach(d => d.status = 'free');
+        GameState.isCleanTurn = true;
+        GameState.phase = 'ready';
+        rollDice();
+      });
+
+      btnNewGame.addEventListener('click', () => { triggerHaptic(20); startNewGame(); });
+
+      btnPlayers.addEventListener('click', () => {
+        triggerHaptic(20);
+        GameState.numPlayers = GameState.numPlayers >= 10 ? 1 : GameState.numPlayers + 1;
+        startNewGame();
+      });
+
+      // Gestione Target Score Modal
+      btnTargetScore.addEventListener('click', () => { triggerHaptic(20); openTargetScoreModal(); });
+      btnSaveTargetScore.addEventListener('click', () => { triggerHaptic(20); saveTargetScore(targetScoreInput.value); });
+      btnCancelTargetScore.addEventListener('click', () => { triggerHaptic(20); targetScoreModal.classList.add('hidden'); });
+      targetScoreInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveTargetScore(targetScoreInput.value); });
+
+      document.querySelectorAll('.preset-score-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          triggerHaptic(20);
+          const val = e.currentTarget.getAttribute('data-value');
+          targetScoreInput.value = val;
+          saveTargetScore(val);
+        });
+      });
+
+      btnSaveName.addEventListener('click', () => { triggerHaptic(20); savePlayerName(); });
+      btnCancelName.addEventListener('click', () => { triggerHaptic(20); nameModal.classList.add('hidden'); });
+      playerNameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') savePlayerName(); });
+
+      btnLeaderboard.addEventListener('click', () => { triggerHaptic(20); leaderboardModal.classList.remove('hidden'); });
+      btnCloseLeaderboard.addEventListener('click', () => { triggerHaptic(20); leaderboardModal.classList.add('hidden'); });
+      
+      // Gestione Eventi Modale Record Turni
+      btnRecordModal.addEventListener('click', () => { triggerHaptic(20); recordModal.classList.remove('hidden'); });
+      btnCloseRecordModal.addEventListener('click', () => { triggerHaptic(20); recordModal.classList.add('hidden'); });
+
+      btnRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.remove('hidden'); });
+      btnCloseRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.add('hidden'); });
+      btnGotItRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.add('hidden'); });
+      btnCloseZong.addEventListener('click', () => { triggerHaptic(20); zongModal.classList.add('hidden'); endTurn(); });
+      btnRestartWin.addEventListener('click', () => { triggerHaptic(20); winModal.classList.add('hidden'); startNewGame(); });
+
+      btnSound.addEventListener('click', () => {
+        triggerHaptic(20);
+        sound.enabled = !sound.enabled;
+        btnSound.innerHTML = sound.enabled 
+          ? '<i data-lucide="volume-2" class="w-4 h-4 text-zinc-300"></i>'
+          : '<i data-lucide="volume-x" class="w-4 h-4 text-red-400"></i>';
+        lucide.createIcons();
+      });
+
+      initScoreboard();
+      updateUI();
+    };
+  </script>
+</body>
+</html>
