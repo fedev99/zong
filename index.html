@@ -225,7 +225,7 @@
       </div>
       <div>
         <h1 class="text-xl sm:text-2xl font-black tracking-wider text-white font-display flex items-center gap-1.5">
-          ZONG <span id="roomBadge" class="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/35">Stanza: --</span>
+          ZONG <span id="roomBadge" class="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/35"> --</span>
         </h1>
       </div>
     </div>
@@ -1059,26 +1059,22 @@
               btnRoll.disabled = false;
               btnRoll.classList.remove('opacity-50', 'cursor-not-allowed');
               btnRollText.textContent = remainingToRoll === 0 ? "HOT DICE! Rilancia 5 Dadi" : `Rilancia (${remainingToRoll})`;
-            } else {
-              btnRoll.disabled = true;
-              btnRoll.classList.add('opacity-50', 'cursor-not-allowed');
-              btnRollText.textContent = "Seleziona Punti";
-            }
 
-            if (totalTurnPoints > 0) {
               if (!GameState.hasEntered[GameState.activePlayer] && totalTurnPoints < 500) {
                 btnBank.disabled = true;
                 btnBank.classList.add('opacity-40', 'cursor-not-allowed');
                 btnBankText.textContent = `Apertura (${totalTurnPoints}/500)`;
               } else {
                 btnBank.disabled = false;
-                btnBank.classList.remove('opacity-40', 'cursor-not-allowed');
+                btnBank.classList.remove('opacity-50', 'cursor-not-allowed');
                 btnBankText.textContent = "Incassa";
               }
             } else {
+              btnRoll.disabled = true;
+              btnRoll.classList.add('opacity-50', 'cursor-not-allowed');
+              btnRollText.textContent = "Seleziona Punti";
               btnBank.disabled = true;
               btnBank.classList.add('opacity-40', 'cursor-not-allowed');
-              btnBankText.textContent = "Incassa";
             }
           }
         }
