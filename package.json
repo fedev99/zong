@@ -1,0 +1,21 @@
+{
+  "name": "zong-game",
+  "version": "1.0.0",
+  "description": "ZONG - Il Gioco dei Dadi Online",
+  "private": true,
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "echo 'Static HTML project - no build needed'",
+    "start": "npx serve ."
+  },
+  "keywords": [
+    "game",
+    "dice",
+    "zong"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  }
+}
