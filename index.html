@@ -183,6 +183,19 @@
     </div>
   </div>
 
+  <!-- MODALE SELEZIONE GIOCATORI NUOVA PARTITA -->
+  <div id="newGameModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-sm w-full text-center">
+      <h3 class="text-base font-bold text-white font-display mb-1">Seleziona Giocatori</h3>
+      <p class="text-xs text-zinc-400 mb-4">Scegli chi parteciperà alla nuova partita:</p>
+      <div id="playerSelectList" class="space-y-2 text-left mb-5 max-h-48 overflow-y-auto"></div>
+      <div class="flex gap-2">
+        <button id="btnCancelNewGame" class="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs">Annulla</button>
+        <button id="btnConfirmNewGame" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs">Avvia</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Header -->
   <header class="w-full max-w-5xl mx-auto py-2 flex items-center justify-between border-b border-zinc-800/80">
     <div class="flex items-center space-x-2.5">
@@ -785,6 +798,10 @@
     const roomBadge = document.getElementById('roomBadge');
     const containerTargetScore = document.getElementById('containerTargetScore');
     const inputTargetScore = document.getElementById('inputTargetScore');
+    const newGameModal = document.getElementById('newGameModal');
+    const playerSelectList = document.getElementById('playerSelectList');
+    const btnCancelNewGame = document.getElementById('btnCancelNewGame');
+    const btnConfirmNewGame = document.getElementById('btnConfirmNewGame');
 
     function checkRoomExists(code) {
       return supabaseClient.from('rooms').select('*').eq('code', code).maybeSingle();
@@ -1298,10 +1315,28 @@
       }
     }
 
-    async function startNewGame() {
+    async function startNewGame(selectedPlayerIndices) {
       triggerHaptic(30);
-      GameState.scores = {};
-      GameState.hasEntered = {};
+      
+      const newPlayerIds = {};
+      const newPlayerNames = {};
+      const newScores = {};
+      const newHasEntered = {};
+      let newCount = 0;
+
+      selectedPlayerIndices.forEach(oldIdx => {
+        newCount++;
+        newPlayerIds[newCount] = GameState.playerIds[oldIdx];
+        newPlayerNames[newCount] = GameState.playerNames[oldIdx];
+        newScores[newCount] = 0;
+        newHasEntered[newCount] = false;
+      });
+
+      GameState.numPlayers = Math.max(1, newCount);
+      GameState.playerIds = newPlayerIds;
+      GameState.playerNames = newPlayerNames;
+      GameState.scores = newScores;
+      GameState.hasEntered = newHasEntered;
       GameState.turnAccumulatedScore = 0;
       GameState.inheritedScore = 0;
       GameState.activePlayer = 1;
@@ -1432,8 +1467,40 @@
       btnNewGame.addEventListener('click', () => {
         triggerHaptic(20);
         if (confirm("Vuoi davvero azzerare e iniziare una nuova partita?")) {
-          startNewGame();
+          playerSelectList.innerHTML = '';
+          for (let i = 1; i <= GameState.numPlayers; i++) {
+            const pName = getPlayerName(i);
+            const label = document.createElement('label');
+            label.className = 'flex items-center gap-2 p-2 bg-zinc-950 rounded-xl cursor-pointer border border-zinc-800 text-xs text-zinc-200 font-semibold';
+            label.innerHTML = `<input type="checkbox" data-player-index="${i}" checked class="w-4 h-4 accent-amber-500 rounded"> <span>${pName}</span>`;
+            playerSelectList.appendChild(label);
+          }
+          newGameModal.classList.remove('hidden');
         }
+      });
+
+      btnCancelNewGame.addEventListener('click', () => {
+        triggerHaptic(20);
+        newGameModal.classList.add('hidden');
+      });
+
+      btnConfirmNewGame.addEventListener('click', () => {
+        triggerHaptic(20);
+        const checkboxes = playerSelectList.querySelectorAll('input[type="checkbox"]');
+        const selectedIndices = [];
+        checkboxes.forEach(cb => {
+          if (cb.checked) {
+            selectedIndices.push(parseInt(cb.getAttribute('data-player-index')));
+          }
+        });
+
+        if (selectedIndices.length === 0) {
+          alert("Devi selezionare almeno un giocatore!");
+          return;
+        }
+
+        newGameModal.classList.add('hidden');
+        startNewGame(selectedIndices);
       });
 
       btnLeaderboard.addEventListener('click', () => { triggerHaptic(20); leaderboardModal.classList.remove('hidden'); });
@@ -1442,7 +1509,18 @@
       btnCloseRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.add('hidden'); });
       btnGotItRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.add('hidden'); });
       btnCloseZong.addEventListener('click', () => { if(isMyTurn()) endTurn(); });
-      btnRestartWin.addEventListener('click', () => { winModal.classList.add('hidden'); startNewGame(); });
+      btnRestartWin.addEventListener('click', () => { 
+        winModal.classList.add('hidden'); 
+        playerSelectList.innerHTML = '';
+        for (let i = 1; i <= GameState.numPlayers; i++) {
+          const pName = getPlayerName(i);
+          const label = document.createElement('label');
+          label.className = 'flex items-center gap-2 p-2 bg-zinc-950 rounded-xl cursor-pointer border border-zinc-800 text-xs text-zinc-200 font-semibold';
+          label.innerHTML = `<input type="checkbox" data-player-index="${i}" checked class="w-4 h-4 accent-amber-500 rounded"> <span>${pName}</span>`;
+          playerSelectList.appendChild(label);
+        }
+        newGameModal.classList.remove('hidden'); 
+      });
 
       btnSound.addEventListener('click', () => {
         triggerHaptic(20);
