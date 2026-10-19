@@ -134,9 +134,28 @@
     }
     .glow-gold { box-shadow: 0 0 25px rgba(234, 179, 8, 0.25); }
     .glow-red { box-shadow: 0 0 35px rgba(239, 68, 68, 0.45); }
+    
+    /* Animazione Pop-up Veloce Notifica */
+    @keyframes toastFadeInOut {
+      0% { opacity: 0; transform: translate(-50%, -20px) scale(0.9); }
+      15% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      85% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -20px) scale(0.9); }
+    }
+    .toast-animate {
+      animation: toastFadeInOut 2.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between overflow-x-hidden p-2 sm:p-4">
+
+  <!-- POP-UP NOTIFICA NON INVASIVO PER GLI AVVERSARI -->
+  <div id="quickToast" class="fixed top-5 left-1/2 -translate-x-1/2 z-[100] hidden pointer-events-none">
+    <div id="toastContent" class="px-4 py-2.5 rounded-2xl bg-zinc-900/95 border text-xs sm:text-sm font-bold shadow-2xl backdrop-blur-md flex items-center gap-2.5">
+      <span id="toastIcon">🔥</span>
+      <span id="toastMessage" class="text-white"></span>
+    </div>
+  </div>
 
   <!-- MODALE LOBBY STANZA ONLINE -->
   <div id="roomModal" class="fixed inset-0 bg-zinc-950/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
@@ -154,16 +173,14 @@
           <label class="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Codice Stanza</label>
           <input id="inputRoomCode" type="text" placeholder="Es. tavolo123" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-white font-semibold text-sm focus:outline-none focus:border-amber-400" />
         </div>
+        <div id="containerTargetScore" class="hidden">
+          <label class="text-[10px] uppercase font-bold text-amber-400 block mb-1">Punteggio Massimo Stanza</label>
+          <input id="inputTargetScore" type="number" step="500" min="1000" value="10000" placeholder="Es. 10000" class="w-full bg-zinc-950 border border-amber-500/60 rounded-xl px-3 py-2 text-amber-300 font-semibold text-sm focus:outline-none focus:border-amber-400" />
+        </div>
       </div>
 
       <button id="btnJoinRoom" class="w-full mt-5 py-3.5 rounded-xl bg-amber-500 text-zinc-950 font-black text-sm font-display shadow-lg active:scale-95 transition">Entra nella Stanza</button>
     </div>
-  </div>
-
-  <!-- Notifica rapida per gli altri giocatori della stanza -->
-  <div id="eventToast" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] hidden w-[calc(100%-2rem)] max-w-sm rounded-2xl border border-amber-400/60 bg-zinc-900/95 px-4 py-3 text-center shadow-2xl">
-    <div id="eventToastTitle" class="font-display text-lg font-black text-amber-300"></div>
-    <div id="eventToastText" class="text-xs text-zinc-200 mt-1"></div>
   </div>
 
   <!-- Header -->
@@ -416,6 +433,7 @@
 
     let roomCode = null;
     let myPlayerId = 'p_' + Math.random().toString(36).substring(2, 9);
+    let lastEventId = null;
 
     // Fallback aptico per iOS Safari 17.4+ (non supporta navigator.vibrate):
     // un <input type="checkbox" switch> nascosto genera un leggero "tick" quando
@@ -564,39 +582,9 @@
     }
     const sound = new SoundEngine();
 
-    const DEFAULT_TARGET_SCORE = 10000;
-    function getTargetScore() {
-      return Number(GameState.maxScore) > 0 ? Number(GameState.maxScore) : DEFAULT_TARGET_SCORE;
-    }
-
-    let lastSeenEventLog = null;
-    let eventToastTimer = null;
-    function showEventToast(title, message, isZong = false) {
-      const toast = document.getElementById('eventToast');
-      document.getElementById('eventToastTitle').textContent = title;
-      document.getElementById('eventToastText').textContent = message;
-      toast.classList.toggle('border-red-500/70', isZong);
-      toast.classList.toggle('border-amber-400/60', !isZong);
-      document.getElementById('eventToastTitle').className = `font-display text-lg font-black ${isZong ? 'text-red-400' : 'text-amber-300'}`;
-      toast.classList.remove('hidden');
-      clearTimeout(eventToastTimer);
-      eventToastTimer = setTimeout(() => toast.classList.add('hidden'), 2600);
-    }
-
-    function notifyRemoteEvent(previousState, nextState) {
-      if (!previousState || !nextState || !Array.isArray(nextState.logs) || !nextState.logs.length) return;
-      const newest = nextState.logs[0];
-      const previousNewest = Array.isArray(previousState.logs) ? previousState.logs[0] : null;
-      if (!newest || newest.text === (previousNewest && previousNewest.text)) return;
-      const activeId = nextState.playerIds && nextState.playerIds[nextState.activePlayer];
-      if (activeId === myPlayerId) return;
-      if (newest.text.includes('HOT DICE')) {
-        showEventToast('🔥 HOT DICE!', `${nextState.playerNames?.[nextState.activePlayer] || 'Un giocatore'} ha fatto Hot Dice!`);
-      } else if (newest.isZong || newest.text.includes('ZONG!')) {
-        showEventToast('💥 ZONG!', `${nextState.playerNames?.[nextState.activePlayer] || 'Un giocatore'} ha fatto Zong!`, true);
-      }
-    }
+    let TARGET_SCORE = 10000;
     const GameState = {
+      targetScore: 10000,
       numPlayers: 1, 
       activePlayer: 1, 
       playerIds: {},   
@@ -615,8 +603,36 @@
       turnAccumulatedScore: 0, 
       inheritedScore: 0,       
       securedInSubTurn: false,
-      logs: [] // Gestione centralizzata della cronologia per la sincronizzazione real-time
+      logs: [], // Gestione centralizzata della cronologia per la sincronizzazione real-time
+      lastEvent: null
     };
+
+    function showQuickToast(type, playerName) {
+      const toastEl = document.getElementById('quickToast');
+      const contentEl = document.getElementById('toastContent');
+      const iconEl = document.getElementById('toastIcon');
+      const msgEl = document.getElementById('toastMessage');
+
+      if (!toastEl || !contentEl || !msgEl) return;
+
+      if (type === 'zong') {
+        iconEl.textContent = '💀';
+        msgEl.textContent = `${playerName} ha fatto ZONG!`;
+        contentEl.className = "px-4 py-2.5 rounded-2xl bg-red-950/90 border border-red-500/60 text-red-200 text-xs sm:text-sm font-black shadow-2xl backdrop-blur-md flex items-center gap-2.5";
+      } else if (type === 'hotdice') {
+        iconEl.textContent = '🔥';
+        msgEl.textContent = `${playerName} ha fatto HOT DICE!`;
+        contentEl.className = "px-4 py-2.5 rounded-2xl bg-amber-950/90 border border-amber-400/60 text-amber-200 text-xs sm:text-sm font-black shadow-2xl backdrop-blur-md flex items-center gap-2.5";
+      }
+
+      toastEl.classList.remove('hidden', 'toast-animate');
+      void toastEl.offsetWidth; // Trigger reflow
+      toastEl.classList.add('toast-animate');
+
+      setTimeout(() => {
+        toastEl.classList.add('hidden');
+      }, 2800);
+    }
 
     function isMyTurn() {
       return GameState.playerIds[GameState.activePlayer] === myPlayerId;
@@ -761,10 +777,34 @@
     const roomModal = document.getElementById('roomModal');
     const inputPlayerName = document.getElementById('inputPlayerName');
     const inputRoomCode = document.getElementById('inputRoomCode');
-    const inputMaxScore = document.getElementById('inputMaxScore');
-    const maxScoreField = document.getElementById('maxScoreField');
     const btnJoinRoom = document.getElementById('btnJoinRoom');
     const roomBadge = document.getElementById('roomBadge');
+    const containerTargetScore = document.getElementById('containerTargetScore');
+    const inputTargetScore = document.getElementById('inputTargetScore');
+
+    function checkRoomExists(code) {
+      return supabaseClient.from('rooms').select('*').eq('code', code).maybeSingle();
+    }
+
+    if (inputRoomCode) {
+      inputRoomCode.addEventListener('input', async () => {
+        const code = inputRoomCode.value.trim();
+        if (!code) {
+          containerTargetScore.classList.add('hidden');
+          return;
+        }
+        try {
+          const { data } = await checkRoomExists(code);
+          if (!data) {
+            containerTargetScore.classList.remove('hidden');
+          } else {
+            containerTargetScore.classList.add('hidden');
+          }
+        } catch(e) {
+          containerTargetScore.classList.add('hidden');
+        }
+      });
+    }
 
     function addLog(text, highlight = false, isZong = false) {
       if (!GameState.logs) GameState.logs = [];
@@ -777,7 +817,7 @@
       if (!logContainer) return;
       logContainer.innerHTML = '';
       if (!GameState.logs || GameState.logs.length === 0) {
-        logContainer.innerHTML = '<p class="text-zinc-500 italic">Pronti. Obiettivo 10.000 punti!</p>';
+        logContainer.innerHTML = `<p class="text-zinc-500 italic">Pronti. Obiettivo ${(GameState.targetScore || TARGET_SCORE).toLocaleString('it-IT')} punti!</p>`;
         return;
       }
       GameState.logs.forEach(item => {
@@ -815,6 +855,7 @@
     }
 
     function updateUI() {
+      TARGET_SCORE = GameState.targetScore || TARGET_SCORE;
       renderLogs(); // Assicura che i log siano sincronizzati e renderizzati correttamente ad ogni aggiornamento UI
       const totalCards = GameState.numPlayers;
       for(let i=1; i<=totalCards; i++) {
@@ -839,7 +880,7 @@
         }
 
         scoreEl.textContent = currentScore;
-        barEl.style.width = Math.min(100, (currentScore / getTargetScore()) * 100) + '%';
+        barEl.style.width = Math.min(100, (currentScore / TARGET_SCORE) * 100) + '%';
         cardEl.className = "relative p-2 rounded-xl border transition-all " + 
           (GameState.activePlayer === i ? "bg-zinc-900 border-amber-500/80 scale-[1.02] shadow" : "bg-zinc-900/40 border-zinc-800 opacity-60");
       }
@@ -1070,6 +1111,7 @@
           sound.playVictory();
           triggerHaptic(80);
           addLog(`🔥 HOT DICE! Rilancia tutti i 5 dadi!`, true);
+          GameState.lastEvent = { id: Math.random(), type: 'hotdice', player: getPlayerName(GameState.activePlayer) };
           GameState.dice.forEach(d => d.status = 'free');
         }
       }
@@ -1131,6 +1173,7 @@
       triggerHaptic(250);
       GameState.turnAccumulatedScore = 0;
       addLog(`💥 ZONG! [ ${rolledValues.join('-')} ]`, false, true);
+      GameState.lastEvent = { id: Math.random(), type: 'zong', player: getPlayerName(GameState.activePlayer) };
       zongModal.classList.remove('hidden');
       await saveStateToCloud();
     }
@@ -1179,7 +1222,7 @@
       triggerHaptic(60);
       addLog(`🏦 ${getPlayerName(GameState.activePlayer)} incassa ${finalTurnTotal} pt!`, true);
 
-      if (GameState.scores[GameState.activePlayer] >= getTargetScore()) {
+      if (GameState.scores[GameState.activePlayer] >= TARGET_SCORE) {
         triggerVictory(GameState.activePlayer, GameState.scores[GameState.activePlayer]);
         await saveStateToCloud();
         return;
@@ -1268,34 +1311,11 @@
       await saveStateToCloud();
     }
 
-    // Mostra il campo punteggio solo quando il codice identifica una stanza nuova.
-    let roomCheckToken = 0;
-    async function checkRoomExists() {
-      const code = inputRoomCode.value.trim();
-      const token = ++roomCheckToken;
-      if (!code) { maxScoreField.classList.remove('hidden'); return; }
-      try {
-        const { data, error } = await supabaseClient.from('rooms').select('code').eq('code', code).maybeSingle();
-        if (token !== roomCheckToken) return;
-        if (error) throw error;
-        maxScoreField.classList.toggle('hidden', !!data);
-      } catch (err) {
-        // In caso di errore non nasconde il campo: la verifica definitiva avviene entrando.
-        if (token === roomCheckToken) maxScoreField.classList.remove('hidden');
-      }
-    }
-    inputRoomCode.addEventListener('input', checkRoomExists);
-    inputRoomCode.addEventListener('blur', checkRoomExists);
-
     // GESTIONE ACCESSO STANZA ONLINE
     btnJoinRoom.addEventListener('click', async () => {
       const name = inputPlayerName.value.trim();
       roomCode = inputRoomCode.value.trim();
       if (!name || !roomCode) { alert("Inserisci sia il nome che il codice stanza!"); return; }
-      const requestedMaxScore = Number(inputMaxScore.value);
-      if (maxScoreField.classList.contains('hidden') === false && (!Number.isFinite(requestedMaxScore) || requestedMaxScore < 500)) {
-        alert("Inserisci un punteggio massimo valido (almeno 500 punti)."); return;
-      }
 
       triggerHaptic(25);
 
@@ -1303,7 +1323,9 @@
         let { data, error } = await supabaseClient.from('rooms').select('*').eq('code', roomCode).maybeSingle();
 
         if (!data) {
-          GameState.maxScore = requestedMaxScore >= 500 ? requestedMaxScore : DEFAULT_TARGET_SCORE;
+          const tScore = parseInt(inputTargetScore.value) || 10000;
+          GameState.targetScore = tScore;
+          TARGET_SCORE = tScore;
           GameState.numPlayers = 1;
           GameState.playerIds = { 1: myPlayerId };
           GameState.playerNames = { 1: name };
@@ -1315,8 +1337,7 @@
           await supabaseClient.from('rooms').insert([{ code: roomCode, state: GameState }]);
         } else {
           Object.assign(GameState, data.state);
-          if (!Number(GameState.maxScore)) GameState.maxScore = DEFAULT_TARGET_SCORE;
-          maxScoreField.classList.add('hidden');
+          TARGET_SCORE = GameState.targetScore || 10000;
           
           let alreadyIn = false;
           let nameExists = false;
@@ -1351,11 +1372,14 @@
         supabaseClient.channel('room-sync-' + roomCode)
           .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `code=eq.${roomCode}` }, payload => {
             if (payload.new && payload.new.state) {
-              const previousState = JSON.parse(JSON.stringify(GameState));
-              const incomingState = payload.new.state;
-              notifyRemoteEvent(previousState, incomingState);
-              Object.assign(GameState, incomingState);
-              if (!Number(GameState.maxScore)) GameState.maxScore = DEFAULT_TARGET_SCORE;
+              const newState = payload.new.state;
+              if (newState.lastEvent && newState.lastEvent.id !== lastEventId) {
+                lastEventId = newState.lastEvent.id;
+                if (!isMyTurn()) {
+                  showQuickToast(newState.lastEvent.type, newState.lastEvent.player);
+                }
+              }
+              Object.assign(GameState, newState);
               initScoreboard();
               updateUI();
             }
