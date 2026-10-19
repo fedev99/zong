@@ -1059,25 +1059,22 @@
               btnRoll.disabled = false;
               btnRoll.classList.remove('opacity-50', 'cursor-not-allowed');
               btnRollText.textContent = remainingToRoll === 0 ? "HOT DICE! Rilancia 5 Dadi" : `Rilancia (${remainingToRoll})`;
+
+              if (!GameState.hasEntered[GameState.activePlayer] && totalTurnPoints < 500) {
+                btnBank.disabled = true;
+                btnBank.classList.add('opacity-40', 'cursor-not-allowed');
+                btnBankText.textContent = `Apertura (${totalTurnPoints}/500)`;
+              } else {
+                btnBank.disabled = false;
+                btnBank.classList.remove('opacity-40', 'cursor-not-allowed');
+                btnBankText.textContent = "Incassa";
+              }
             } else {
               btnRoll.disabled = true;
               btnRoll.classList.add('opacity-50', 'cursor-not-allowed');
               btnRollText.textContent = "Seleziona Punti";
-            }
-
-            // CORRETTO: Si può incassare solo se ci sono punti totali nel turno > 0, 
-            // se la selezione corrente (se presente) è valida, e se (se non ancora entrato) si raggiungono almeno 500 pt.
-            const hasValidSelectionOrNone = (selectedValues.length === 0 && GameState.turnAccumulatedScore > 0) || (selectedValues.length > 0 && evalResult.isValid);
-            const meetsEntry = GameState.hasEntered[GameState.activePlayer] || totalTurnPoints >= 500;
-
-            if (totalTurnPoints > 0 && hasValidSelectionOrNone && meetsEntry) {
-              btnBank.disabled = false;
-              btnBank.classList.remove('opacity-40', 'cursor-not-allowed');
-              btnBankText.textContent = "Incassa";
-            } else {
               btnBank.disabled = true;
               btnBank.classList.add('opacity-40', 'cursor-not-allowed');
-              btnBankText.textContent = (!GameState.hasEntered[GameState.activePlayer] && totalTurnPoints < 500 && totalTurnPoints > 0) ? `Apertura (${totalTurnPoints}/500)` : "Incassa";
             }
           }
         }
@@ -1666,7 +1663,7 @@
           label.innerHTML = `<input type="checkbox" data-player-index="${i}" checked class="w-4 h-4 accent-amber-500 rounded"> <span>${pName}</span>`;
           playerSelectList.appendChild(label);
         }
-        newGameModal.classList.add('hidden'); 
+        newGameModal.classList.remove('hidden'); 
       });
 
       btnSound.addEventListener('click', () => {
