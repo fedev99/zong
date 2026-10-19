@@ -160,6 +160,12 @@
     </div>
   </div>
 
+  <!-- Notifica rapida per gli altri giocatori della stanza -->
+  <div id="eventToast" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] hidden w-[calc(100%-2rem)] max-w-sm rounded-2xl border border-amber-400/60 bg-zinc-900/95 px-4 py-3 text-center shadow-2xl">
+    <div id="eventToastTitle" class="font-display text-lg font-black text-amber-300"></div>
+    <div id="eventToastText" class="text-xs text-zinc-200 mt-1"></div>
+  </div>
+
   <!-- Header -->
   <header class="w-full max-w-5xl mx-auto py-2 flex items-center justify-between border-b border-zinc-800/80">
     <div class="flex items-center space-x-2.5">
@@ -558,7 +564,38 @@
     }
     const sound = new SoundEngine();
 
-    const TARGET_SCORE = 10000;
+    const DEFAULT_TARGET_SCORE = 10000;
+    function getTargetScore() {
+      return Number(GameState.maxScore) > 0 ? Number(GameState.maxScore) : DEFAULT_TARGET_SCORE;
+    }
+
+    let lastSeenEventLog = null;
+    let eventToastTimer = null;
+    function showEventToast(title, message, isZong = false) {
+      const toast = document.getElementById('eventToast');
+      document.getElementById('eventToastTitle').textContent = title;
+      document.getElementById('eventToastText').textContent = message;
+      toast.classList.toggle('border-red-500/70', isZong);
+      toast.classList.toggle('border-amber-400/60', !isZong);
+      document.getElementById('eventToastTitle').className = `font-display text-lg font-black ${isZong ? 'text-red-400' : 'text-amber-300'}`;
+      toast.classList.remove('hidden');
+      clearTimeout(eventToastTimer);
+      eventToastTimer = setTimeout(() => toast.classList.add('hidden'), 2600);
+    }
+
+    function notifyRemoteEvent(previousState, nextState) {
+      if (!previousState || !nextState || !Array.isArray(nextState.logs) || !nextState.logs.length) return;
+      const newest = nextState.logs[0];
+      const previousNewest = Array.isArray(previousState.logs) ? previousState.logs[0] : null;
+      if (!newest || newest.text === (previousNewest && previousNewest.text)) return;
+      const activeId = nextState.playerIds && nextState.playerIds[nextState.activePlayer];
+      if (activeId === myPlayerId) return;
+      if (newest.text.includes('HOT DICE')) {
+        showEventToast('🔥 HOT DICE!', `${nextState.playerNames?.[nextState.activePlayer] || 'Un giocatore'} ha fatto Hot Dice!`);
+      } else if (newest.isZong || newest.text.includes('ZONG!')) {
+        showEventToast('💥 ZONG!', `${nextState.playerNames?.[nextState.activePlayer] || 'Un giocatore'} ha fatto Zong!`, true);
+      }
+    }
     const GameState = {
       numPlayers: 1, 
       activePlayer: 1, 
@@ -724,6 +761,8 @@
     const roomModal = document.getElementById('roomModal');
     const inputPlayerName = document.getElementById('inputPlayerName');
     const inputRoomCode = document.getElementById('inputRoomCode');
+    const inputMaxScore = document.getElementById('inputMaxScore');
+    const maxScoreField = document.getElementById('maxScoreField');
     const btnJoinRoom = document.getElementById('btnJoinRoom');
     const roomBadge = document.getElementById('roomBadge');
 
@@ -800,7 +839,7 @@
         }
 
         scoreEl.textContent = currentScore;
-        barEl.style.width = Math.min(100, (currentScore / TARGET_SCORE) * 100) + '%';
+        barEl.style.width = Math.min(100, (currentScore / getTargetScore()) * 100) + '%';
         cardEl.className = "relative p-2 rounded-xl border transition-all " + 
           (GameState.activePlayer === i ? "bg-zinc-900 border-amber-500/80 scale-[1.02] shadow" : "bg-zinc-900/40 border-zinc-800 opacity-60");
       }
@@ -1140,7 +1179,7 @@
       triggerHaptic(60);
       addLog(`🏦 ${getPlayerName(GameState.activePlayer)} incassa ${finalTurnTotal} pt!`, true);
 
-      if (GameState.scores[GameState.activePlayer] >= TARGET_SCORE) {
+      if (GameState.scores[GameState.activePlayer] >= getTargetScore()) {
         triggerVictory(GameState.activePlayer, GameState.scores[GameState.activePlayer]);
         await saveStateToCloud();
         return;
@@ -1229,11 +1268,34 @@
       await saveStateToCloud();
     }
 
+    // Mostra il campo punteggio solo quando il codice identifica una stanza nuova.
+    let roomCheckToken = 0;
+    async function checkRoomExists() {
+      const code = inputRoomCode.value.trim();
+      const token = ++roomCheckToken;
+      if (!code) { maxScoreField.classList.remove('hidden'); return; }
+      try {
+        const { data, error } = await supabaseClient.from('rooms').select('code').eq('code', code).maybeSingle();
+        if (token !== roomCheckToken) return;
+        if (error) throw error;
+        maxScoreField.classList.toggle('hidden', !!data);
+      } catch (err) {
+        // In caso di errore non nasconde il campo: la verifica definitiva avviene entrando.
+        if (token === roomCheckToken) maxScoreField.classList.remove('hidden');
+      }
+    }
+    inputRoomCode.addEventListener('input', checkRoomExists);
+    inputRoomCode.addEventListener('blur', checkRoomExists);
+
     // GESTIONE ACCESSO STANZA ONLINE
     btnJoinRoom.addEventListener('click', async () => {
       const name = inputPlayerName.value.trim();
       roomCode = inputRoomCode.value.trim();
       if (!name || !roomCode) { alert("Inserisci sia il nome che il codice stanza!"); return; }
+      const requestedMaxScore = Number(inputMaxScore.value);
+      if (maxScoreField.classList.contains('hidden') === false && (!Number.isFinite(requestedMaxScore) || requestedMaxScore < 500)) {
+        alert("Inserisci un punteggio massimo valido (almeno 500 punti)."); return;
+      }
 
       triggerHaptic(25);
 
@@ -1241,6 +1303,7 @@
         let { data, error } = await supabaseClient.from('rooms').select('*').eq('code', roomCode).maybeSingle();
 
         if (!data) {
+          GameState.maxScore = requestedMaxScore >= 500 ? requestedMaxScore : DEFAULT_TARGET_SCORE;
           GameState.numPlayers = 1;
           GameState.playerIds = { 1: myPlayerId };
           GameState.playerNames = { 1: name };
@@ -1252,6 +1315,8 @@
           await supabaseClient.from('rooms').insert([{ code: roomCode, state: GameState }]);
         } else {
           Object.assign(GameState, data.state);
+          if (!Number(GameState.maxScore)) GameState.maxScore = DEFAULT_TARGET_SCORE;
+          maxScoreField.classList.add('hidden');
           
           let alreadyIn = false;
           let nameExists = false;
@@ -1286,7 +1351,11 @@
         supabaseClient.channel('room-sync-' + roomCode)
           .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `code=eq.${roomCode}` }, payload => {
             if (payload.new && payload.new.state) {
-              Object.assign(GameState, payload.new.state);
+              const previousState = JSON.parse(JSON.stringify(GameState));
+              const incomingState = payload.new.state;
+              notifyRemoteEvent(previousState, incomingState);
+              Object.assign(GameState, incomingState);
+              if (!Number(GameState.maxScore)) GameState.maxScore = DEFAULT_TARGET_SCORE;
               initScoreboard();
               updateUI();
             }
