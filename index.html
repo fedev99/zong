@@ -394,12 +394,19 @@
 
   <!-- WIN MODAL -->
   <div id="winModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-gradient-to-b from-amber-950 via-zinc-950 to-black border-2 border-amber-500 rounded-3xl p-6 max-w-xs w-full text-center glow-gold">
+    <div class="bg-gradient-to-b from-amber-950 via-zinc-950 to-black border-2 border-amber-500 rounded-3xl p-6 max-w-sm w-full text-center glow-gold">
       <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center text-amber-400">
         <i data-lucide="trophy" class="w-8 h-8"></i>
       </div>
       <h2 class="text-2xl font-black text-amber-400 font-display" id="winnerTitle">VITTORIA!</h2>
       <p class="text-xs text-zinc-300 my-2" id="winnerSubtitle">Vittoria!</p>
+      
+      <!-- Classifica aggiornata sotto il pop-up di fine partita -->
+      <div class="my-3 text-left">
+        <span class="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Classifica Finale</span>
+        <div id="finalLeaderboardContainer" class="space-y-1.5 max-h-36 overflow-y-auto"></div>
+      </div>
+
       <button id="btnRestartWin" class="w-full py-3 rounded-xl bg-amber-500 text-zinc-950 font-bold text-sm mt-3">Nuova Partita</button>
     </div>
   </div>
@@ -1277,8 +1284,57 @@
     async function triggerVictory(player, finalScore) {
       sound.playVictory();
       triggerHaptic([100, 50, 100, 50, 200]);
-      document.getElementById('winnerTitle').textContent = `VITTORIA!`;
-      document.getElementById('winnerSubtitle').textContent = `${getPlayerName(player)} ha trionfato raggiungendo ${finalScore} punti in ${GameState.round} turni!`;
+
+      // Popola la classifica finale all'interno del modale di vittoria
+      const finalLeaderboardContainer = document.getElementById('finalLeaderboardContainer');
+      if (finalLeaderboardContainer) {
+        finalLeaderboardContainer.innerHTML = '';
+        const list = [];
+        for (let i = 1; i <= GameState.numPlayers; i++) {
+          list.push({ id: i, score: GameState.scores[i] || 0 });
+        }
+        list.sort((a, b) => b.score - a.score);
+
+        list.forEach((p, idx) => {
+          const row = document.createElement('div');
+          row.className = `flex items-center justify-between p-2 rounded-lg border ${p.id === player ? 'bg-amber-500/15 border-amber-500/50' : 'bg-zinc-950 border-zinc-800'}`;
+          row.innerHTML = `
+            <div class="flex items-center gap-2">
+              <span class="w-4 h-4 rounded-full flex items-center justify-center bg-zinc-800 text-[10px] font-bold">${idx + 1}</span>
+              <span class="text-xs font-bold text-zinc-200">${getPlayerName(p.id)}</span>
+            </div>
+            <span class="text-xs font-black text-white">${p.score} pt</span>
+          `;
+          finalLeaderboardContainer.appendChild(row);
+        });
+      }
+
+      // Trova la posizione in classifica del giocatore corrente (myPlayerId)
+      let myPlayerIndex = 1;
+      for (let i = 1; i <= GameState.numPlayers; i++) {
+        if (GameState.playerIds[i] === myPlayerId) {
+          myPlayerIndex = i;
+          break;
+        }
+      }
+
+      const sortedList = [];
+      for (let i = 1; i <= GameState.numPlayers; i++) {
+        sortedList.push({ id: i, score: GameState.scores[i] || 0 });
+      }
+      sortedList.sort((a, b) => b.score - a.score);
+      const myRank = sortedList.findIndex(item => item.id === myPlayerIndex) + 1;
+
+      if (myPlayerIndex === player) {
+        document.getElementById('winnerTitle').textContent = `VITTORIA!`;
+        document.getElementById('winnerSubtitle').textContent = `Hai trionfato raggiungendo ${finalScore} punti in ${GameState.round} turni!`;
+      } else {
+        const ordinalSuffixes = ['', 'primo', 'secondo', 'terzo', 'quarto', 'quinto'];
+        const rankText = ordinalSuffixes[myRank] || `${myRank}°`;
+        document.getElementById('winnerTitle').textContent = `FINE PARTITA`;
+        document.getElementById('winnerSubtitle').textContent = `${getPlayerName(player)} ha vinto. Sei arrivato ${rankText}!`;
+      }
+
       winModal.classList.remove('hidden');
     }
 
