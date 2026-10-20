@@ -930,8 +930,6 @@
       });
     }
 
-    const PLAYER_COLORS = ['#fbbf24', '#3b82f6', '#10b981', '#a855f7', '#f43f5e'];
-
     function initScoreboard() {
       if(!playersContainer) return;
       playersContainer.innerHTML = '';
@@ -942,7 +940,7 @@
         if (GameState.records[i] === undefined) GameState.records[i] = 0;
         const card = document.createElement('div');
         card.id = `cardP${i}`;
-        const playerColor = PLAYER_COLORS[(i - 1) % PLAYER_COLORS.length];
+        const barColor = i === 1 ? 'bg-amber-400' : (i === 2 ? 'bg-blue-500' : (i === 3 ? 'bg-emerald-500' : (i === 4 ? 'bg-purple-500' : 'bg-rose-500')));
         
         card.innerHTML = `
           <div class="flex items-center justify-between">
@@ -953,7 +951,7 @@
             <span class="text-[9px] text-zinc-400" id="subP${i}">pt</span>
           </div>
           <div class="w-full bg-zinc-800 rounded-full h-1 mt-1 overflow-hidden">
-            <div id="barP${i}" class="h-full rounded-full transition-all duration-300" style="width: 0%; background-color: ${playerColor}"></div>
+            <div id="barP${i}" class="${barColor} h-full rounded-full transition-all duration-300" style="width: 0%"></div>
           </div>
           <div class="mt-1 text-[9px] text-zinc-400 flex items-center justify-between border-t border-zinc-800/60 pt-0.5">
             <span>Record:</span>
@@ -980,14 +978,11 @@
         const subEl = document.getElementById(`subP${i}`);
         const recordEl = document.getElementById(`recordP${i}`);
         if(!cardEl) continue;
-        const playerColor = PLAYER_COLORS[(i - 1) % PLAYER_COLORS.length];
-
         let currentScore = GameState.scores[i] || 0;
         let currentRecord = GameState.records[i] || 0;
         let isMe = GameState.playerIds[i] === myPlayerId;
         labelEl.innerHTML = (GameState.activePlayer === i ? '● ' : '') + getPlayerName(i) + (isMe ? ' (Tu)' : '');
         labelEl.className = "text-[10px] font-bold uppercase truncate";
-        labelEl.style.color = playerColor;
 
         if (!GameState.hasEntered[i]) {
             subEl.innerHTML = '🔒 500pt';
@@ -1002,7 +997,9 @@
         barEl.style.width = Math.min(100, (currentScore / TARGET_SCORE) * 100) + '%';
         cardEl.className = "relative p-2 rounded-xl border transition-all " + 
           (GameState.activePlayer === i ? "bg-zinc-900 border-amber-500/80 scale-[1.02] shadow" : "bg-zinc-900/40 border-zinc-800 opacity-60");
-        cardEl.style.borderColor = playerColor;
+        const barColor = getComputedStyle(barEl).backgroundColor;
+        labelEl.style.color = barColor;
+        cardEl.style.borderColor = barColor;
       }
 
       renderLeaderboard();
