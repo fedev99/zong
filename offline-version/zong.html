@@ -163,8 +163,8 @@
       </button>
 
       <!-- BOTTONE TRASFORMATO IN FINESTRA CLASSIFICA RECORD TURNO -->
-      <button id="btnRecordModal" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-300 text-xs font-semibold flex items-center gap-1.5" title="Classifica Record di Turno">
-        <i data-lucide="award" class="w-4 h-4 text-amber-400"></i>
+      <button id="btnRecordModal" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-orange-300 text-xs font-semibold flex items-center gap-1.5" title="Classifica Record di Turno">
+        <i data-lucide="award" class="w-4 h-4 text-orange-400"></i>
         <span class="hidden sm:inline">Record</span>
       </button>
 
@@ -621,6 +621,15 @@
       securedInSubTurn: false,
     };
 
+    const PLAYER_COLORS = [
+      '#b8860b', '#3b82f6', '#10b981', '#a855f7', '#6b7280',
+      '#f97316', '#06b6d4', '#14b8a6', '#6366f1', '#f87171'
+    ];
+
+    function getPlayerColor(id) {
+      return PLAYER_COLORS[id - 1];
+    }
+
     let editingPlayerId = 1;
 
     function getPlayerName(id) {
@@ -839,7 +848,7 @@
       for(let i=1; i<=totalCards; i++) {
         const card = document.createElement('div');
         card.id = `cardP${i}`;
-        const barColor = i === 1 ? 'bg-amber-400' : (i === 2 ? 'bg-blue-500' : (i === 3 ? 'bg-emerald-500' : (i === 4 ? 'bg-purple-500' : (i === 5 ? 'bg-rose-500' : (i === 6 ? 'bg-cyan-500' : (i === 7 ? 'bg-orange-500' : (i === 8 ? 'bg-indigo-500' : (i === 9 ? 'bg-teal-500' : 'bg-pink-500'))))))));
+        const playerColor = getPlayerColor(i);
         
         card.innerHTML = `
           <div class="flex items-center justify-between">
@@ -853,7 +862,7 @@
             <span class="text-[9px] text-amber-400/90 font-semibold" id="recP${i}" title="Record Turno Singolo Pulito">🥇 0 pt</span>
           </div>
           <div class="w-full bg-zinc-800 rounded-full h-1 mt-1 overflow-hidden">
-            <div id="barP${i}" class="${barColor} h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+            <div id="barP${i}" class="h-full rounded-full transition-all duration-300" style="width: 0%; background-color: ${playerColor}"></div>
           </div>
         `;
         playersContainer.appendChild(card);
@@ -870,10 +879,12 @@
         const barEl = document.getElementById(`barP${i}`);
         const recEl = document.getElementById(`recP${i}`);
         if(!cardEl) continue;
+        const playerColor = getPlayerColor(i);
 
         let currentScore = GameState.scores[i];
         labelEl.innerHTML = (GameState.activePlayer === i ? '● ' : '') + getPlayerName(i);
-        labelEl.className = GameState.activePlayer === i ? "text-[10px] font-bold uppercase text-amber-400" : "text-[10px] font-bold uppercase text-zinc-400";
+        labelEl.className = "text-[10px] font-bold uppercase";
+        labelEl.style.color = playerColor;
 
         scoreEl.textContent = currentScore;
 
@@ -884,6 +895,7 @@
         barEl.style.width = Math.min(100, (currentScore / TARGET_SCORE) * 100) + '%';
         cardEl.className = "relative p-2 rounded-xl border transition-all " + 
           (GameState.activePlayer === i ? "bg-zinc-900 border-amber-500/80 scale-[1.02] shadow" : "bg-zinc-900/40 border-zinc-800 opacity-60");
+        cardEl.style.borderColor = playerColor;
       }
 
       if (btnPlayersText) btnPlayersText.textContent = GameState.numPlayers === 1 ? "1 Gioc." : `${GameState.numPlayers} Gioc.`;
