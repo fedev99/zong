@@ -995,8 +995,8 @@
         scoreEl.textContent = currentScore;
         if (recordEl) recordEl.textContent = `${currentRecord} pt`;
         barEl.style.width = Math.min(100, (currentScore / TARGET_SCORE) * 100) + '%';
-        cardEl.className = "relative p-2 rounded-xl border transition-all " + 
-          (GameState.activePlayer === i ? "bg-zinc-900 border-amber-500/80 scale-[1.02] shadow" : "bg-zinc-900/40 border-zinc-800 opacity-60");
+        cardEl.className = "relative p-2 rounded-xl border " + 
+          (GameState.activePlayer === i ? "bg-zinc-900 border-amber-500/80 shadow" : "bg-zinc-900/40 border-zinc-800 opacity-60");
         const barColor = getComputedStyle(barEl).backgroundColor;
         labelEl.style.color = barColor;
         cardEl.style.borderColor = barColor;
@@ -1619,9 +1619,7 @@
                 }
               }
 
-              if (playersContainer.children.length !== GameState.numPlayers) {
-                initScoreboard();
-              }
+              initScoreboard();
               updateUI();
             }
           })
