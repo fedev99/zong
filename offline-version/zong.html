@@ -447,7 +447,13 @@
         <button id="btnCloseRecordModal" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
       <p class="text-[11px] text-zinc-400 mb-3">I migliori punteggi realizzati in un singolo turno dai giocatori nella stanza.</p>
-      <div id="recordModalContainer" class="space-y-2 max-h-[60vh] overflow-y-auto"></div>
+      <div id="recordModalContainer" class="space-y-2 max-h-[50vh] overflow-y-auto mb-3"></div>
+      
+      <!-- TASTO PER RESETTARE TUTTI I RECORD -->
+      <button id="btnResetRecords" class="w-full py-2.5 rounded-xl bg-red-950/80 border border-red-800/60 text-red-300 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-red-900/80 transition">
+        <i data-lucide="trash-2" class="w-4 h-4"></i>
+        <span>Resetta Tutti i Record</span>
+      </button>
     </div>
   </div>
 
@@ -622,7 +628,7 @@
     };
 
     const PLAYER_COLORS = [
-      '#b8860b', '#3b82f6', '#10b981', '#a855f7', '#6b7280',
+      '#b8860b', '#3b82f6', '#10b981', '#a855f7', '#8B4513',
       '#f97316', '#06b6d4', '#14b8a6', '#6366f1', '#f87171'
     ];
 
@@ -760,6 +766,7 @@
     const recordModal = document.getElementById('recordModal');
     const btnCloseRecordModal = document.getElementById('btnCloseRecordModal');
     const recordModalContainer = document.getElementById('recordModalContainer');
+    const btnResetRecords = document.getElementById('btnResetRecords');
 
     // Riferimenti per la Modale Target Score
     const btnTargetScore = document.getElementById('btnTargetScore');
@@ -1398,9 +1405,21 @@
       btnLeaderboard.addEventListener('click', () => { triggerHaptic(20); leaderboardModal.classList.remove('hidden'); });
       btnCloseLeaderboard.addEventListener('click', () => { triggerHaptic(20); leaderboardModal.classList.add('hidden'); });
       
-      // Gestione Eventi Modale Record Turni
+      // Gestione Eventi Modale Record Turni e Pulsante Reset Record
       btnRecordModal.addEventListener('click', () => { triggerHaptic(20); recordModal.classList.remove('hidden'); });
       btnCloseRecordModal.addEventListener('click', () => { triggerHaptic(20); recordModal.classList.add('hidden'); });
+      
+      btnResetRecords.addEventListener('click', () => {
+        triggerHaptic(30);
+        if (confirm("Vuoi davvero azzerare tutti i record dei singoli turni di tutti i giocatori?")) {
+          GameState.playerTurnRecords = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0 };
+          try {
+            localStorage.removeItem('zong_player_turn_records');
+          } catch(e) {}
+          updateUI();
+          addLog("🧹 Tutti i record dei turni sono stati resettati.", true);
+        }
+      });
 
       btnRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.remove('hidden'); });
       btnCloseRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.add('hidden'); });
