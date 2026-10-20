@@ -196,27 +196,32 @@
     </div>
   </div>
 
-  <!-- MODALE IMPOSTA/VISUALIZZA PUNTEGGIO MASSIMO STANZA -->
-  <div id="targetScoreModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-xs w-full text-center">
-      <div class="w-12 h-12 mx-auto mb-3 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-        <i data-lucide="target" class="w-6 h-6"></i>
+ <!-- MODAL IMPOSTA PUNTEGGIO MASSIMO -->
+   <div id="targetScoreModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-xs w-full shadow-2xl">
+      <div class="flex items-center gap-2 mb-2 text-amber-400">
+        <i data-lucide="target" class="w-5 h-5"></i>
+        <h3 class="text-base font-bold text-white font-display">Punteggio Massimo</h3>
       </div>
-      <h3 class="text-base font-bold text-white font-display mb-1">Punteggio Massimo</h3>
-      <p class="text-xs text-zinc-400 mb-4">Imposta o visualizza il punteggio da raggiungere per vincere la partita.</p>
+      <p class="text-xs text-zinc-400 mb-3">Scegli o inserisci il punteggio necessario per vincere la partita:</p>
       
-      <div class="mb-4 text-left">
-        <label class="text-[10px] uppercase font-bold text-amber-400 block mb-1">Obiettivo Stanza (pt)</label>
-        <input id="modalInputTargetScore" type="number" step="500" min="1000" value="10000" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-amber-300 font-bold text-base focus:outline-none focus:border-amber-400 text-center" />
+      <!-- Preset Buttons -->
+      <div class="grid grid-cols-2 gap-2 mb-3">
+        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="2500">2.500 pt</button>
+        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="5000">5.000 pt</button>
+        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="10000">10.000 pt</button>
+        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="15000">15.000 pt</button>
       </div>
 
+      <input id="targetScoreInput" type="number" min="1000" step="500" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-white font-semibold text-sm focus:outline-none focus:border-amber-400 mb-4" placeholder="Valore personalizzato" />
       <div class="flex gap-2">
         <button id="btnCancelTargetScore" class="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs">Annulla</button>
-        <button id="btnSaveTargetScore" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs">Salva</button>
+        <button id="btnSaveTargetScore" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs">Conferma</button>
       </div>
     </div>
   </div>
 
+  
   <!-- Header -->
   <header class="w-full max-w-5xl mx-auto py-2 flex items-center justify-between border-b border-zinc-800/80">
     <div class="flex items-center space-x-2.5">
