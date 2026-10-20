@@ -198,10 +198,10 @@
 
     <!-- Current Turn Status -->
     <div class="p-3 sm:p-4 rounded-2xl bg-zinc-900/90 border border-amber-500/30 flex justify-between items-center relative overflow-hidden">
-      <div id="entryOverlay" class="absolute inset-0 bg-red-950/80 backdrop-blur-[2px] hidden items-center justify-center z-10">
-        <div class="flex items-center gap-2 text-red-300 font-bold text-xs sm:text-sm">
-          <i data-lucide="lock" class="w-4 h-4"></i>
-          <span>Apertura richiesta: 500pt in un turno</span>
+      <div id="entryOverlay" class="absolute inset-0 bg-red-950/80 backdrop-blur-[2px] hidden items-center justify-center z-10 transition-all duration-300">
+        <div id="entryOverlayContent" class="flex items-center gap-2 text-red-300 font-bold text-xs sm:text-sm">
+          <i id="entryOverlayIcon" data-lucide="lock" class="w-4 h-4"></i>
+          <span id="entryOverlayText">Apertura richiesta: 500pt in un turno</span>
         </div>
       </div>
 
@@ -458,6 +458,13 @@
   </div>
 
   <script>
+    // Generatore di casualità crittografica reale basato sulla Web Crypto API
+    function getRandomDiceValue() {
+      const randomArray = new Uint32Array(1);
+      window.crypto.getRandomValues(randomArray);
+      return (randomArray[0] % 6) + 1;
+    }
+
     let _hapticLabel = null;
     let _lastIosTick = 0;
     function iosTick() {
@@ -964,10 +971,31 @@
       availableDiceCountEl.textContent = `${freeCount + forcedFreeCount + selectedValues.length} su 5`;
 
       const entryOverlay = document.getElementById('entryOverlay');
+      const entryOverlayContent = document.getElementById('entryOverlayContent');
+      const entryOverlayIcon = document.getElementById('entryOverlayIcon');
+      const entryOverlayText = document.getElementById('entryOverlayText');
+
       if (!GameState.hasEntered[GameState.activePlayer] && GameState.phase !== 'inherit_choice' && GameState.phase !== 'ready') {
         entryOverlay.classList.remove('hidden');
         entryOverlay.classList.add('flex');
-        entryOverlay.querySelector('span').textContent = `Apertura richiesta: ${totalTurnPoints}/500 pt`;
+        
+        if (totalTurnPoints >= 500) {
+          // Soglia raggiunta: rimuovi lucchetto e rosso, mostra il punteggio raggiunto
+          entryOverlay.className = "absolute inset-0 bg-emerald-950/85 backdrop-blur-[2px] flex items-center justify-center z-10 transition-all duration-300";
+          entryOverlayContent.className = "flex items-center gap-2 text-emerald-300 font-bold text-xs sm:text-sm";
+          if (entryOverlayIcon) {
+            entryOverlayIcon.setAttribute('data-lucide', 'unlock');
+          }
+          entryOverlayText.textContent = `Apertura raggiunta: ${totalTurnPoints}/500 pt`;
+        } else {
+          // Sotto soglia: mantieni rosso, lucchetto e testo di richiesta
+          entryOverlay.className = "absolute inset-0 bg-red-950/80 backdrop-blur-[2px] flex items-center justify-center z-10 transition-all duration-300";
+          entryOverlayContent.className = "flex items-center gap-2 text-red-300 font-bold text-xs sm:text-sm";
+          if (entryOverlayIcon) {
+            entryOverlayIcon.setAttribute('data-lucide', 'lock');
+          }
+          entryOverlayText.textContent = `Apertura richiesta: ${totalTurnPoints}/500 pt`;
+        }
       } else {
         entryOverlay.classList.add('hidden');
         entryOverlay.classList.remove('flex');
@@ -1162,7 +1190,7 @@
       setTimeout(() => {
         const newlyRolledValues = [];
         indicesToRoll.forEach(idx => {
-          const val = Math.floor(Math.random() * 6) + 1;
+          const val = getRandomDiceValue();
           GameState.dice[idx].value = val;
           GameState.dice[idx].status = 'free';
           newlyRolledValues.push(val);
