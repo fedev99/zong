@@ -14,11 +14,6 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Supabase Client JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Vercel Web Analytics -->
-  <script>
-    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-  </script>
-  <script defer src="/_vercel/insights/script.js"></script>
 
   <style>
     body {
@@ -919,6 +914,18 @@
       await saveStateToCloud();
     }
 
+    function openNewGameModal() {
+      playerSelectList.innerHTML = '';
+      for (let i = 1; i <= GameState.numPlayers; i++) {
+        const pName = getPlayerName(i);
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-2 p-2 bg-zinc-950 rounded-xl cursor-pointer border border-zinc-800 text-xs text-zinc-200 font-semibold';
+        label.innerHTML = `<input type="checkbox" data-player-index="${i}" checked class="w-4 h-4 accent-amber-500 rounded"> <span>${pName}</span>`;
+        playerSelectList.appendChild(label);
+      }
+      newGameModal.classList.remove('hidden');
+    }
+
     function addLog(text, highlight = false, isZong = false) {
       if (!GameState.logs) GameState.logs = [];
       GameState.logs.unshift({ text, highlight, isZong });
@@ -976,11 +983,16 @@
     }
 
     function updateUI() {
+      if (newGameModal && !newGameModal.classList.contains('hidden')) {
+        newGameModal.classList.add('hidden');
+      }
+
       TARGET_SCORE = GameState.targetScore || TARGET_SCORE;
       if (targetScoreHeaderLabel) {
         targetScoreHeaderLabel.textContent = `${TARGET_SCORE.toLocaleString('it-IT')} pt`;
       }
       renderLogs();
+      initScoreboard();
       const totalCards = GameState.numPlayers;
       if (!GameState.records) GameState.records = {};
       for(let i=1; i<=totalCards; i++) {
@@ -1683,17 +1695,7 @@
 
       btnNewGame.addEventListener('click', () => {
         triggerHaptic(20);
-        if (confirm("Vuoi davvero azzerare e iniziare una nuova partita?")) {
-          playerSelectList.innerHTML = '';
-          for (let i = 1; i <= GameState.numPlayers; i++) {
-            const pName = getPlayerName(i);
-            const label = document.createElement('label');
-            label.className = 'flex items-center gap-2 p-2 bg-zinc-950 rounded-xl cursor-pointer border border-zinc-800 text-xs text-zinc-200 font-semibold';
-            label.innerHTML = `<input type="checkbox" data-player-index="${i}" checked class="w-4 h-4 accent-amber-500 rounded"> <span>${pName}</span>`;
-            playerSelectList.appendChild(label);
-          }
-          newGameModal.classList.remove('hidden');
-        }
+        openNewGameModal();
       });
 
       btnCancelNewGame.addEventListener('click', () => {
@@ -1732,15 +1734,7 @@
       btnGotItRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.add('hidden'); });
       btnRestartWin.addEventListener('click', () => { 
         winModal.classList.add('hidden'); 
-        playerSelectList.innerHTML = '';
-        for (let i = 1; i <= GameState.numPlayers; i++) {
-          const pName = getPlayerName(i);
-          const label = document.createElement('label');
-          label.className = 'flex items-center gap-2 p-2 bg-zinc-950 rounded-xl cursor-pointer border border-zinc-800 text-xs text-zinc-200 font-semibold';
-          label.innerHTML = `<input type="checkbox" data-player-index="${i}" checked class="w-4 h-4 accent-amber-500 rounded"> <span>${pName}</span>`;
-          playerSelectList.appendChild(label);
-        }
-        newGameModal.classList.remove('hidden'); 
+        openNewGameModal();
       });
 
       btnSound.addEventListener('click', () => {
