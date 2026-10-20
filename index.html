@@ -272,8 +272,8 @@
 
     <!-- Current Turn Status -->
     <div class="p-3 sm:p-4 rounded-2xl bg-zinc-900/90 border border-amber-500/30 flex justify-between items-center relative overflow-hidden">
-      <div id="entryOverlay" class="absolute inset-0 bg-red-950/80 backdrop-blur-[2px] hidden items-center justify-center z-10">
-        <div class="flex items-center gap-2 text-red-300 font-bold text-xs sm:text-sm">
+      <div id="entryOverlay" class="absolute inset-0 bg-red-950/80 backdrop-blur-[2px] hidden items-center justify-center z-10 transition-colors duration-300">
+        <div class="flex items-center gap-2 text-red-300 font-bold text-xs sm:text-sm" id="entryOverlayText">
           <i data-lucide="lock" class="w-4 h-4"></i>
           <span>Apertura richiesta: 500pt in un turno</span>
         </div>
@@ -480,6 +480,15 @@
 
   <script>
     // -------------------------------------------------------------
+    // FUNZIONE CASUALE CRITTOGRAFICAMENTE SICURA
+    // -------------------------------------------------------------
+    function getRandomDiceRoll() {
+      const array = new Uint32Array(1);
+      window.crypto.getRandomValues(array);
+      return (array[0] % 6) + 1;
+    }
+
+    // -------------------------------------------------------------
     // CONFIGURAZIONE SUPABASE PER LA SALA ONLINE
     // -------------------------------------------------------------
     const SUPABASE_URL = 'https://ttajaifqzjpdfxvrvdnf.supabase.co';
@@ -491,8 +500,6 @@
     let lastEventId = null;
 
     // Fallback aptico per iOS Safari 17.4+ (non supporta navigator.vibrate):
-    // un <input type="checkbox" switch> nascosto genera un leggero "tick" quando
-    // viene attivato tramite la sua label durante un gesto dell'utente.
     let _hapticLabel = null;
     let _lastIosTick = 0;
     function iosTick() {
@@ -521,7 +528,6 @@
           navigator.vibrate(duration);
           return;
         }
-        // Fallback iOS: un tick per ogni segmento di vibrazione del pattern
         if (Array.isArray(duration)) {
           let t = 0;
           duration.forEach((ms, i) => {
@@ -645,11 +651,11 @@
       playerIds: {},   
       playerNames: {},
       scores: {},
-      records: {}, // Traccia il record in una singola mano per ciascun giocatore
+      records: {},
       hasEntered: {},
       round: 1,
       phase: 'ready',
-      isInheritedTurn: false, // Flag per verificare se il turno corrente deriva da un'eredità
+      isInheritedTurn: false,
       dice: [
         { value: 1, status: 'free' },
         { value: 2, status: 'free' },
@@ -660,7 +666,7 @@
       turnAccumulatedScore: 0, 
       inheritedScore: 0,       
       securedInSubTurn: false,
-      logs: [], // Gestione centralizzata della cronologia per la sincronizzazione real-time
+      logs: [],
       lastEvent: null
     };
 
@@ -683,7 +689,7 @@
       }
 
       toastEl.classList.remove('hidden', 'toast-animate');
-      void toastEl.offsetWidth; // Trigger reflow
+      void toastEl.offsetWidth;
       toastEl.classList.add('toast-animate');
 
       setTimeout(() => {
@@ -911,7 +917,7 @@
     function addLog(text, highlight = false, isZong = false) {
       if (!GameState.logs) GameState.logs = [];
       GameState.logs.unshift({ text, highlight, isZong });
-      if (GameState.logs.length > 30) GameState.logs.pop(); // Mantiene un limite massimo di log storici
+      if (GameState.logs.length > 30) GameState.logs.pop();
       renderLogs();
     }
 
@@ -969,7 +975,7 @@
       if (targetScoreHeaderLabel) {
         targetScoreHeaderLabel.textContent = `${TARGET_SCORE.toLocaleString('it-IT')} pt`;
       }
-      renderLogs(); // Assicura che i log siano sincronizzati e renderizzati correttamente ad ogni aggiornamento UI
+      renderLogs();
       const totalCards = GameState.numPlayers;
       if (!GameState.records) GameState.records = {};
       for(let i=1; i<=totalCards; i++) {
@@ -1060,10 +1066,24 @@
       availableDiceCountEl.textContent = `${freeCount + forcedFreeCount + selectedValues.length} su 5`;
 
       const entryOverlay = document.getElementById('entryOverlay');
+      const entryOverlayText = document.getElementById('entryOverlayText');
+      
+      // MODIFICA SOGLIA DI APERTURA: Togli lucchetto/rosso se superato 500pt
       if (!GameState.hasEntered[GameState.activePlayer] && GameState.phase !== 'inherit_choice' && GameState.phase !== 'ready') {
         entryOverlay.classList.remove('hidden');
         entryOverlay.classList.add('flex');
-        entryOverlay.querySelector('span').textContent = `Apertura richiesta: ${totalTurnPoints}/500 pt`;
+
+        if (totalTurnPoints >= 500) {
+          // Soglia superata: Verde/Oro, niente lucchetto, mostra punti e messaggio incasso
+          entryOverlay.className = "absolute inset-0 bg-emerald-950/80 border border-emerald-500/50 backdrop-blur-[2px] flex items-center justify-center z-10 transition-colors duration-300";
+          entryOverlayText.className = "flex items-center gap-2 text-emerald-300 font-bold text-xs sm:text-sm";
+          entryOverlayText.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i><span>Soglia apertura raggiunta: ${totalTurnPoints} pt - Puoi incassare!</span>`;
+        } else {
+          // Sotto la soglia: Rosso, lucchetto presente
+          entryOverlay.className = "absolute inset-0 bg-red-950/80 backdrop-blur-[2px] flex items-center justify-center z-10 transition-colors duration-300";
+          entryOverlayText.className = "flex items-center gap-2 text-red-300 font-bold text-xs sm:text-sm";
+          entryOverlayText.innerHTML = `<i data-lucide="lock" class="w-4 h-4"></i><span>Apertura richiesta: ${totalTurnPoints}/500 pt</span>`;
+        }
       } else {
         entryOverlay.classList.add('hidden');
         entryOverlay.classList.remove('flex');
@@ -1254,7 +1274,6 @@
         }
       });
 
-      // CORREZIONE BUG: Se tutti i dadi sono bloccati (Hot Dice non resettato), forza il reset di tutti i dadi prima del lancio
       if (indicesToRoll.length === 0) {
         GameState.dice.forEach((d, idx) => {
           d.status = 'free';
@@ -1268,7 +1287,8 @@
       setTimeout(async () => {
         const newlyRolledValues = [];
         indicesToRoll.forEach(idx => {
-          const val = Math.floor(Math.random() * 6) + 1;
+          // USO CASUALITÀ CRITTOGRAFICAMENTE SICURA
+          const val = getRandomDiceRoll();
           GameState.dice[idx].value = val;
           GameState.dice[idx].status = 'free';
           newlyRolledValues.push(val);
@@ -1348,7 +1368,6 @@
         addLog(`🔓 ${getPlayerName(GameState.activePlayer)} ha aperto (500+ pt)!`, true);
       }
 
-      // Aggiornamento Record se il turno NON è ereditato
       if (!GameState.records) GameState.records = {};
       const currentRecord = GameState.records[GameState.activePlayer] || 0;
       if (!GameState.isInheritedTurn && finalTurnTotal > currentRecord) {
@@ -1389,14 +1408,12 @@
       sound.playVictory();
       triggerHaptic([100, 50, 100, 50, 200]);
       
-      // Calcola la classifica ordinata per il modale di vittoria
       const list = [];
       for (let i = 1; i <= GameState.numPlayers; i++) {
         list.push({ id: i, score: GameState.scores[i] || 0 });
       }
       list.sort((a, b) => b.score - a.score);
 
-      // Trova la posizione del giocatore corrente (locale)
       let myLocalIndex = -1;
       for (let i = 1; i <= GameState.numPlayers; i++) {
         if (GameState.playerIds[i] === myPlayerId) {
@@ -1412,7 +1429,6 @@
         }
       });
 
-      // Titolo dinamico personalizzato per ogni giocatore
       let titleText = "VITTORIA!";
       let subtitleText = `${getPlayerName(player)} ha trionfato con ${finalScore} punti!`;
 
@@ -1424,9 +1440,6 @@
           titleText = "SEI ARRIVATO SECONDO!";
           subtitleText = `Ottima partita! Secondo posto conquistato.`;
         } else {
-          // Ordinali ordinali o generico
-          let suffix = "o";
-          if (myRank === 3) suffix = "o terzo";
           titleText = `SEI ARRIVATO ${myRank}°!`;
           subtitleText = `Hai concluso la partita in ${myRank}° posizione.`;
         }
@@ -1435,7 +1448,6 @@
       document.getElementById('winnerTitle').textContent = titleText;
       document.getElementById('winnerSubtitle').textContent = subtitleText;
 
-      // Popola la classifica sotto nel modale di vittoria
       if (winLeaderboardContainer) {
         winLeaderboardContainer.innerHTML = '';
         list.forEach((p, idx) => {
@@ -1609,11 +1621,9 @@
               }
               Object.assign(GameState, newState);
               
-              // Se la partita è finita ed è arrivato lo stato di vittoria tramite cloud, mostra il modale di vittoria anche agli altri
               if (winModal && !winModal.classList.contains('hidden') === false) {
                 for (let i = 1; i <= GameState.numPlayers; i++) {
                   if (GameState.scores[i] >= TARGET_SCORE) {
-                    // Se c'è un vincitore ma il modale locale non è aperto, aprilo
                     if (winModal.classList.contains('hidden')) {
                       triggerVictory(i, GameState.scores[i]);
                     }
@@ -1649,7 +1659,7 @@
         triggerHaptic(20);
         sound.init();
         GameState.turnAccumulatedScore = GameState.inheritedScore;
-        GameState.isInheritedTurn = true; // Segnala che i punti correnti provengono da un'eredità
+        GameState.isInheritedTurn = true;
         GameState.phase = 'ready';
         rollDice();
       });
@@ -1660,7 +1670,7 @@
         sound.init();
         GameState.turnAccumulatedScore = 0;
         GameState.inheritedScore = 0;
-        GameState.isInheritedTurn = false; // Parte da 0 con 5 dadi
+        GameState.isInheritedTurn = false;
         GameState.dice.forEach(d => d.status = 'free');
         GameState.phase = 'ready';
         rollDice();
