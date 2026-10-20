@@ -196,8 +196,8 @@
     </div>
   </div>
 
- <!-- MODAL IMPOSTA PUNTEGGIO MASSIMO -->
-   <div id="targetScoreModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+  <!-- MODAL IMPOSTA PUNTEGGIO MASSIMO -->
+  <div id="targetScoreModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-xs w-full shadow-2xl">
       <div class="flex items-center gap-2 mb-2 text-amber-400">
         <i data-lucide="target" class="w-5 h-5"></i>
@@ -207,10 +207,10 @@
       
       <!-- Preset Buttons -->
       <div class="grid grid-cols-2 gap-2 mb-3">
-        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="2500">2.500 pt</button>
-        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="5000">5.000 pt</button>
-        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="10000">10.000 pt</button>
-        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300" data-value="15000">15.000 pt</button>
+        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300 transition" data-value="2500">2.500 pt</button>
+        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300 transition" data-value="5000">5.000 pt</button>
+        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300 transition" data-value="10000">10.000 pt</button>
+        <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300 transition" data-value="15000">15.000 pt</button>
       </div>
 
       <input id="targetScoreInput" type="number" min="1000" step="500" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-white font-semibold text-sm focus:outline-none focus:border-amber-400 mb-4" placeholder="Valore personalizzato" />
@@ -221,7 +221,6 @@
     </div>
   </div>
 
-  
   <!-- Header -->
   <header class="w-full max-w-5xl mx-auto py-2 flex items-center justify-between border-b border-zinc-800/80">
     <div class="flex items-center space-x-2.5">
@@ -859,7 +858,7 @@
     const btnTargetScoreMobile = document.getElementById('btnTargetScoreMobile');
     const targetScoreHeaderLabel = document.getElementById('targetScoreHeaderLabel');
     const targetScoreModal = document.getElementById('targetScoreModal');
-    const modalInputTargetScore = document.getElementById('modalInputTargetScore');
+    const targetScoreInput = document.getElementById('targetScoreInput');
     const btnCancelTargetScore = document.getElementById('btnCancelTargetScore');
     const btnSaveTargetScore = document.getElementById('btnSaveTargetScore');
 
@@ -889,8 +888,8 @@
 
     function openTargetScoreModal() {
       triggerHaptic(20);
-      if (modalInputTargetScore) {
-        modalInputTargetScore.value = GameState.targetScore || TARGET_SCORE;
+      if (targetScoreInput) {
+        targetScoreInput.value = GameState.targetScore || TARGET_SCORE;
       }
       if (targetScoreModal) {
         targetScoreModal.classList.remove('hidden');
@@ -906,7 +905,7 @@
 
     async function saveTargetScoreFromModal() {
       triggerHaptic(25);
-      const val = parseInt(modalInputTargetScore.value);
+      const val = parseInt(targetScoreInput.value);
       if (isNaN(val) || val < 1000) {
         alert("Inserisci un punteggio valido (minimo 1000 punti)!");
         return;
@@ -1090,18 +1089,15 @@
       const entryOverlay = document.getElementById('entryOverlay');
       const entryOverlayText = document.getElementById('entryOverlayText');
       
-      // MODIFICA SOGLIA DI APERTURA: Togli lucchetto/rosso se superato 500pt
       if (!GameState.hasEntered[GameState.activePlayer] && GameState.phase !== 'inherit_choice' && GameState.phase !== 'ready') {
         entryOverlay.classList.remove('hidden');
         entryOverlay.classList.add('flex');
 
         if (totalTurnPoints >= 500) {
-          // Soglia superata: Verde/Oro, niente lucchetto, mostra punti e messaggio incasso
           entryOverlay.className = "absolute inset-0 bg-emerald-950/80 border border-emerald-500/50 backdrop-blur-[2px] flex items-center justify-center z-10 transition-colors duration-300";
           entryOverlayText.className = "flex items-center gap-2 text-emerald-300 font-bold text-xs sm:text-sm";
           entryOverlayText.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i><span>Soglia apertura raggiunta: ${totalTurnPoints} pt - Puoi incassare!</span>`;
         } else {
-          // Sotto la soglia: Rosso, lucchetto presente
           entryOverlay.className = "absolute inset-0 bg-red-950/80 backdrop-blur-[2px] flex items-center justify-center z-10 transition-colors duration-300";
           entryOverlayText.className = "flex items-center gap-2 text-red-300 font-bold text-xs sm:text-sm";
           entryOverlayText.innerHTML = `<i data-lucide="lock" class="w-4 h-4"></i><span>Apertura richiesta: ${totalTurnPoints}/500 pt</span>`;
@@ -1309,7 +1305,6 @@
       setTimeout(async () => {
         const newlyRolledValues = [];
         indicesToRoll.forEach(idx => {
-          // USO CASUALITÀ CRITTOGRAFICAMENTE SICURA
           const val = getRandomDiceRoll();
           GameState.dice[idx].value = val;
           GameState.dice[idx].status = 'free';
@@ -1725,6 +1720,18 @@
 
         newGameModal.classList.add('hidden');
         startNewGame(selectedIndices);
+      });
+
+      // Gestione Preset Punteggio Massimo
+      const presetBtns = document.querySelectorAll('.preset-score-btn');
+      presetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          triggerHaptic(15);
+          const val = btn.getAttribute('data-value');
+          if (targetScoreInput) {
+            targetScoreInput.value = val;
+          }
+        });
       });
 
       if (btnTargetScoreHeader) btnTargetScoreHeader.addEventListener('click', openTargetScoreModal);
