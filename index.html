@@ -935,7 +935,7 @@
     function addLog(text, highlight = false, isZong = false) {
       if (!GameState.logs) GameState.logs = [];
       GameState.logs.unshift({ text, highlight, isZong });
-      if (GameState.logs.length > 30) GameState.logs.pop();
+      if (GameState.logs.length > 200) GameState.logs.pop();
       renderLogs();
     }
 
@@ -1325,11 +1325,13 @@
         const bankedCountNow = GameState.dice.filter(d => d.status === 'banked').length;
         const hasScore = hasAnyScoringCombination(newlyRolledValues, bankedCountNow);
 
+        // Registra sempre il lancio in cronologia (anche quando è uno Zong)
+        addLog(`${getPlayerName(GameState.activePlayer)} lancia: [ ${newlyRolledValues.join('-')} ]`);
+
         if (!hasScore) {
           await triggerZong(newlyRolledValues);
         } else {
           statusMessageEl.textContent = `Usciti: [ ${newlyRolledValues.join(', ')} ]`;
-          addLog(`Lancio: [ ${newlyRolledValues.join('-')} ]`);
           updateUI();
           await saveStateToCloud();
         }
