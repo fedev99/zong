@@ -244,7 +244,7 @@
         <span id="targetScoreHeaderLabel" class="hidden sm:inline">10.000 pt</span>
       </button>
 
-      <!-- 3. ICONA RECORD STANZA (SCALATO & BALLATO) -->
+      <!-- 3. ICONA RECORD STANZA -->
       <button id="btnRoomRecords" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-yellow-400 text-xs font-semibold flex items-center gap-1">
         <i data-lucide="award" class="w-4 h-4"></i>
         <span class="hidden sm:inline">Record</span>
@@ -388,7 +388,7 @@
       <div class="w-14 h-14 mx-auto mb-2 rounded-full bg-red-600/20 border border-red-500/50 flex items-center justify-center text-red-500">
         <i data-lucide="skull" class="w-8 h-8"></i>
       </div>
-      <h2 class="text-4xl font-black text-red-500 font-display mb-1">Hai fatto ZONG</h2>
+      <h2 class="text-3xl font-black text-red-500 font-display mb-1">hai fatto Song</h2>
       <p class="text-xs text-zinc-300" id="zongModalProbabilityText">Nessun punto valido. Turno perso!</p>
     </div>
   </div>
@@ -445,7 +445,7 @@
     </div>
   </div>
 
-  <!-- ROOM RECORDS MODAL (RECORD SCALATO E RECORD BALLATO) -->
+  <!-- ROOM RECORDS MODAL -->
   <div id="roomRecordsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-sm w-full">
       <div class="flex items-center justify-between pb-2 border-b border-zinc-800 mb-3">
@@ -460,20 +460,18 @@
   </div>
 
   <script>
-    // PROBABILITA' TEORICA DI ZONG IN BASE AL NUMERO DI DADI LANCIATI
     const ZONG_PROBABILITIES = {
-      1: 50.00,  // 3/6 esiti perdenti (2,3,4)
-      2: 44.44,  // 16/36 esiti perdenti (solo numeri 2,3,4,6)
-      3: 27.78,  // 60/216 esiti perdenti
-      4: 12.35,  // 160/1296 esiti perdenti
-      5: 7.72    // 600/7776 esiti perdenti
+      1: 50.00,
+      2: 44.44,
+      3: 27.78,
+      4: 12.35,
+      5: 7.72
     };
 
     function getZongProbability(numDice) {
       return ZONG_PROBABILITIES[numDice] || 0;
     }
 
-    // CAPACITOR BACK BUTTON ANDROID
     document.addEventListener('deviceready', () => {
       if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
         window.Capacitor.Plugins.App.addListener('backButton', () => {
@@ -594,8 +592,8 @@
       targetScore: 10000,
       numPlayers: 1, activePlayer: 1, 
       playerIds: {}, playerNames: {}, scores: {},
-      recordsScalato: {}, // Record senza punti ereditati
-      recordsBallato: {}, // Record con punti ereditati
+      recordsScalato: {},
+      recordsBallato: {},
       hasEntered: {},
       round: 1, phase: 'ready', isInheritedTurn: false,
       dice: [
@@ -616,7 +614,7 @@
 
       if (type === 'zong') {
         iconEl.textContent = '💀';
-        msgEl.textContent = `${playerName} ha fatto ZONG!`;
+        msgEl.textContent = `${playerName} ha fatto Song!`;
         contentEl.className = "px-4 py-2.5 rounded-2xl bg-red-950/90 border border-red-500/60 text-red-200 text-xs sm:text-sm font-black shadow-2xl backdrop-blur-md flex items-center gap-2.5";
       } else if (type === 'hotdice') {
         iconEl.textContent = '🔥';
@@ -1101,28 +1099,28 @@
 
         const numRolled = indicesToRoll.length;
         const zongProb = getZongProbability(numRolled);
+        const pName = getPlayerName(GameState.activePlayer);
 
         if (!hasScore) {
-          await triggerZong(newlyRolledValues, numRolled, zongProb);
+          await triggerZong(newlyRolledValues, numRolled, zongProb, pName);
         } else {
-          addLog(`Lancio (${numRolled} dadi, ${zongProb}% rischio Zong): [ ${newlyRolledValues.join('-')} ]`);
+          addLog(`${pName} - Lancio (${numRolled} dadi) [ ${newlyRolledValues.join('-')} ] | Probabilità Zong: <b>${zongProb}%</b>`);
           updateUI();
           await saveStateToCloud();
         }
       }, 700);
     }
 
-    async function triggerZong(rolledValues, numDice, zongProb) {
+    async function triggerZong(rolledValues, numDice, zongProb, pName) {
       sound.playZong();
       triggerHaptic(250);
       GameState.turnAccumulatedScore = 0;
       
-      const pName = getPlayerName(GameState.activePlayer);
-      addLog(`💥 ${pName} fa ZONG! con ${numDice} dadi [ ${rolledValues.join('-')} ] (Rischio Zong: ${zongProb}%)`, false, true);
+      addLog(`💥 ${pName} ha fatto Song con ${numDice} dadi [ ${rolledValues.join('-')} ] | Percentuale Zong: <b>${zongProb}%</b>`, false, true);
       
       const modalTextEl = document.getElementById('zongModalProbabilityText');
       if (modalTextEl) {
-        modalTextEl.textContent = `${pName} ha rischiato il ${zongProb}% ed è uscito ZONG! Turno perso.`;
+        modalTextEl.textContent = `${pName} ha fatto Song con una probabilità del ${zongProb}%! Turno perso.`;
       }
 
       GameState.lastEvent = { id: Math.random(), type: 'zong', player: pName };
