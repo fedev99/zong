@@ -4,15 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>ZONG - Il Gioco dei Dadi Online</title>
-  
-  <!-- SCRIPT LOCALI PER FUNZIONAMENTO OFFLINE (Capacitor / Android) -->
-  <script src="js/tailwind.js"></script>
-  <script src="js/lucide.min.js"></script>
-  <script src="js/supabase.js"></script>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Supabase Client JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', sans-serif;
       background-color: #060709;
       color: #e5e7eb;
       user-select: none;
@@ -21,8 +26,9 @@
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
     }
-    .font-display { font-family: system-ui, sans-serif; font-weight: 800; }
+    .font-display { font-family: 'Outfit', sans-serif; }
 
+    /* 3D Dice Perspective and Cube Styles */
     .dice-scene {
       perspective: 700px;
       width: 68px;
@@ -129,6 +135,7 @@
     .glow-gold { box-shadow: 0 0 25px rgba(234, 179, 8, 0.25); }
     .glow-red { box-shadow: 0 0 35px rgba(239, 68, 68, 0.45); }
     
+    /* Animazione Pop-up Veloce Notifica */
     @keyframes toastFadeInOut {
       0% { opacity: 0; transform: translate(-50%, -20px) scale(0.9); }
       15% { opacity: 1; transform: translate(-50%, 0) scale(1); }
@@ -142,7 +149,7 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between overflow-x-hidden p-2 sm:p-4">
 
-  <!-- POP-UP NOTIFICA AVVERSARI -->
+  <!-- POP-UP NOTIFICA NON INVASIVO PER GLI AVVERSARI -->
   <div id="quickToast" class="fixed top-5 left-1/2 -translate-x-1/2 z-[100] hidden pointer-events-none">
     <div id="toastContent" class="px-4 py-2.5 rounded-2xl bg-zinc-900/95 border text-xs sm:text-sm font-bold shadow-2xl backdrop-blur-md flex items-center gap-2.5">
       <span id="toastIcon">🔥</span>
@@ -189,7 +196,7 @@
     </div>
   </div>
 
-  <!-- MODAL PUNTEGGIO MASSIMO -->
+  <!-- MODAL IMPOSTA PUNTEGGIO MASSIMO -->
   <div id="targetScoreModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-xs w-full shadow-2xl">
       <div class="flex items-center gap-2 mb-2 text-amber-400">
@@ -197,7 +204,8 @@
         <h3 class="text-base font-bold text-white font-display">Punteggio Massimo</h3>
       </div>
       <p class="text-xs text-zinc-400 mb-3">Scegli o inserisci il punteggio necessario per vincere la partita:</p>
-
+      
+      <!-- Preset Buttons -->
       <div class="grid grid-cols-2 gap-2 mb-3">
         <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300 transition" data-value="2500">2.500 pt</button>
         <button type="button" class="preset-score-btn py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-amber-300 transition" data-value="5000">5.000 pt</button>
@@ -228,41 +236,32 @@
 
     <!-- Actions -->
     <div class="flex items-center gap-1.5 sm:gap-2">
-      <!-- 1. Volume -->
+     
       <button id="btnSound" class="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300">
         <i data-lucide="volume-2" class="w-4 h-4"></i>
       </button>
 
-      <!-- 2. Target Score Mobile -->
+       <!-- Icona Target Score per Smartphone (solo icona) -->
       <button id="btnTargetScoreMobile" class="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 sm:hidden flex items-center justify-center">
         <i data-lucide="target" class="w-4 h-4"></i>
       </button>
 
-      <!-- 2. Target Score Header -->
+       <!-- Icona/Bottone Target Score per Desktop/Tablet -->
       <button id="btnTargetScoreHeader" class="hidden sm:flex p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 text-xs font-semibold items-center gap-1">
         <i data-lucide="target" class="w-4 h-4"></i>
         <span id="targetScoreHeaderLabel" class="hidden sm:inline">10.000 pt</span>
       </button>
 
-      <!-- 3. ICONA RECORD STANZA (SCALATO & BALLATO) -->
-      <button id="btnRoomRecords" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-yellow-400 text-xs font-semibold flex items-center gap-1">
-        <i data-lucide="award" class="w-4 h-4"></i>
-        <span class="hidden sm:inline">Record</span>
-      </button>
-
-      <!-- 4. Classifica -->
       <button id="btnLeaderboard" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-emerald-300 text-xs font-semibold flex items-center gap-1">
         <i data-lucide="trophy" class="w-4 h-4"></i>
         <span class="hidden sm:inline">Classifica</span>
       </button>
 
-      <!-- 5. Regole -->
       <button id="btnRules" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-purple-300 text-xs font-semibold flex items-center gap-1">
         <i data-lucide="book-open" class="w-4 h-4"></i>
         <span class="hidden sm:inline">Regole</span>
       </button>
 
-      <!-- 6. Nuova Partita -->
       <button id="btnNewGame" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 border border-red-900/60 text-red-300 text-xs font-semibold flex items-center gap-1">
           <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
       </button>
@@ -272,8 +271,10 @@
   <!-- Main Game Area -->
   <main class="w-full max-w-5xl mx-auto flex-1 flex flex-col gap-3 sm:gap-5 justify-center py-2">
 
+    <!-- Players Cards Container -->
     <div id="playersContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2"></div>
 
+    <!-- Current Turn Status -->
     <div class="p-3 sm:p-4 rounded-2xl bg-zinc-900/90 border border-amber-500/30 flex justify-between items-center relative overflow-hidden">
       <div id="entryOverlay" class="absolute inset-0 bg-red-950/80 backdrop-blur-[2px] hidden items-center justify-center z-10 transition-colors duration-300">
         <div class="flex items-center gap-2 text-red-300 font-bold text-xs sm:text-sm" id="entryOverlayText">
@@ -309,22 +310,56 @@
 
       <!-- Dice Row -->
       <div class="flex flex-wrap justify-center items-center gap-3 sm:gap-5 z-10 py-1">
-        <script>
-          for(let i=0; i<5; i++) {
-            document.write(`
-              <div class="dice-container transition-all duration-200" data-index="${i}">
-                <div class="dice-scene"><div class="cube" id="cube-${i}">
-                  <div class="cube-face f1"><div class="pip col-start-2 row-start-2"></div></div>
-                  <div class="cube-face f2"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-3"></div></div>
-                  <div class="cube-face f3"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
-                  <div class="cube-face f4"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
-                  <div class="cube-face f5"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
-                  <div class="cube-face f6"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-1 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-3 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
-                </div></div><div class="dice-sub text-[9px] text-center font-bold text-zinc-500 mt-1 uppercase">Libero</div>
-              </div>
-            `);
-          }
-        </script>
+        <div class="dice-container transition-all duration-200" data-index="0">
+          <div class="dice-scene"><div class="cube" id="cube-0">
+            <div class="cube-face f1"><div class="pip col-start-2 row-start-2"></div></div>
+            <div class="cube-face f2"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f3"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f4"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f5"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f6"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-1 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-3 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+          </div></div><div class="dice-sub text-[9px] text-center font-bold text-zinc-500 mt-1 uppercase">Libero</div>
+        </div>
+        <div class="dice-container transition-all duration-200" data-index="1">
+          <div class="dice-scene"><div class="cube" id="cube-1">
+            <div class="cube-face f1"><div class="pip col-start-2 row-start-2"></div></div>
+            <div class="cube-face f2"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f3"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f4"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f5"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f6"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-1 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-3 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+          </div></div><div class="dice-sub text-[9px] text-center font-bold text-zinc-500 mt-1 uppercase">Libero</div>
+        </div>
+        <div class="dice-container transition-all duration-200" data-index="2">
+          <div class="dice-scene"><div class="cube" id="cube-2">
+            <div class="cube-face f1"><div class="pip col-start-2 row-start-2"></div></div>
+            <div class="cube-face f2"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f3"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f4"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f5"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f6"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-1 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-3 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+          </div></div><div class="dice-sub text-[9px] text-center font-bold text-zinc-500 mt-1 uppercase">Libero</div>
+        </div>
+        <div class="dice-container transition-all duration-200" data-index="3">
+          <div class="dice-scene"><div class="cube" id="cube-3">
+            <div class="cube-face f1"><div class="pip col-start-2 row-start-2"></div></div>
+            <div class="cube-face f2"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f3"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f4"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f5"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f6"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-1 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-3 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+          </div></div><div class="dice-sub text-[9px] text-center font-bold text-zinc-500 mt-1 uppercase">Libero</div>
+        </div>
+        <div class="dice-container transition-all duration-200" data-index="4">
+          <div class="dice-scene"><div class="cube" id="cube-4">
+            <div class="cube-face f1"><div class="pip col-start-2 row-start-2"></div></div>
+            <div class="cube-face f2"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f3"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f4"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f5"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-2 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-3"></div></div>
+            <div class="cube-face f6"><div class="pip col-start-1 row-start-1"></div><div class="pip col-start-1 row-start-2"></div><div class="pip col-start-1 row-start-3"></div><div class="pip col-start-3 row-start-1"></div><div class="pip col-start-3 row-start-2"></div><div class="pip col-start-3 row-start-3"></div></div>
+          </div></div><div class="dice-sub text-[9px] text-center font-bold text-zinc-500 mt-1 uppercase">Libero</div>
+        </div>
       </div>
 
       <div id="selectionPill" class="mt-3 text-xs font-semibold text-amber-300 min-h-[18px] text-center px-2 z-10"></div>
@@ -364,11 +399,11 @@
       </button>
     </div>
 
-    <!-- History Log con Probabilità -->
+    <!-- History Log -->
     <div class="rounded-xl bg-zinc-900/70 border border-zinc-800 p-3">
       <div class="flex items-center justify-between mb-1">
         <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-          <i data-lucide="history" class="w-3.5 h-3.5 text-amber-400"></i> Cronologia & Probabilità
+          <i data-lucide="history" class="w-3.5 h-3.5 text-amber-400"></i> Cronologia
         </span>
         <span class="text-[10px] text-zinc-500" id="roundCounter">Turno 1</span>
       </div>
@@ -378,18 +413,19 @@
     </div>
   </main>
 
+  <!-- FOOTER PERSONALIZZATO -->
   <footer class="w-full text-center py-3 border-t border-zinc-900 text-zinc-500 text-xs font-medium tracking-wide">
     ZONG • Creato da Tex Willa
   </footer>
 
-  <!-- MODALE ZONG -->
+  <!-- ZONG MODAL -->
   <div id="zongModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-gradient-to-b from-red-950 via-zinc-950 to-black border-2 border-red-600 rounded-3xl p-6 max-w-xs w-full text-center glow-red zong-animate">
       <div class="w-14 h-14 mx-auto mb-2 rounded-full bg-red-600/20 border border-red-500/50 flex items-center justify-center text-red-500">
         <i data-lucide="skull" class="w-8 h-8"></i>
       </div>
-      <h2 class="text-4xl font-black text-red-500 font-display mb-1">Hai fatto ZONG</h2>
-      <p class="text-xs text-zinc-300" id="zongModalProbabilityText">Nessun punto valido. Turno perso!</p>
+      <h2 id="zongModalTitle" class="text-3xl font-black text-red-500 font-display mb-1">Hai fatto ZONG</h2>
+      <p id="zongModalSub" class="text-xs text-zinc-300">Nessun punto valido. Turno perso!</p>
     </div>
   </div>
 
@@ -402,6 +438,7 @@
       <h2 class="text-xl font-black text-amber-400 font-display" id="winnerTitle">VITTORIA!</h2>
       <p class="text-xs text-zinc-300 my-1" id="winnerSubtitle">Vittoria!</p>
       
+      <!-- Classifica Finale all'interno del modale di vittoria -->
       <div class="mt-3 text-left">
         <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">Classifica Finale</span>
         <div id="winLeaderboardContainer" class="space-y-1.5 max-h-36 overflow-y-auto mb-3"></div>
@@ -424,8 +461,8 @@
         <p>• <strong>Quaterna:</strong> 2x Tris | <strong>Cinquina:</strong> 4x Tris</p>
         <p>• <strong>Scala (1-5 o 2-6):</strong> 1500 pt</p>
         <p>• <strong>Apertura:</strong> Minimo 500 pt in un turno per registrare punti sul tabellone.</p>
-        <p>• <strong>✨ Sei Magico:</strong> Se resta 1 solo dado ed esce 6, non perdi con Zong! Guadagni 0 pt ma sblocchi l'Hot Dice.</p>
-        <p>• <strong>✂️ Due Cinque:</strong> Uniscili per accantonare solo un 5 guadagnando 100 pt e tenendo l'altro libero.</p>
+        <p>• <strong>✨ Sei Magico:</strong> Se resta 1 solo dado ed esce 6, non perdi con Zong! Guadagni 0 pt ma sblocchi l'Hot Dice rilanciando tutti i 5 dadi.</p>
+        <p>• <strong>✂️ Due Cinque:</strong> Uniscili per accantonare solo un 5 guadagnando 100 pt e tenendo l'altro libero per il tiro successivo.</p>
       </div>
       <button id="btnGotItRules" class="w-full py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs mt-2">Chiudi</button>
     </div>
@@ -436,7 +473,7 @@
     <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-sm w-full">
       <div class="flex items-center justify-between pb-2 border-b border-zinc-800 mb-3">
         <div>
-          <h3 class="text-base font-bold text-white font-display">Classifica Punti Stanza</h3>
+          <h3 class="text-base font-bold text-white font-display">Classifica</h3>
           <p id="leaderboardTargetLabel" class="text-[10px] text-amber-400 font-semibold"></p>
         </div>
         <button id="btnCloseLeaderboard"><i data-lucide="x" class="w-5 h-5"></i></button>
@@ -445,60 +482,19 @@
     </div>
   </div>
 
-  <!-- ROOM RECORDS MODAL (RECORD SCALATO E RECORD BALLATO) -->
-  <div id="roomRecordsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-sm w-full">
-      <div class="flex items-center justify-between pb-2 border-b border-zinc-800 mb-3">
-        <div>
-          <h3 class="text-base font-bold text-yellow-400 font-display flex items-center gap-1.5"><i data-lucide="award" class="w-4 h-4"></i> Record Giocatori Stanza</h3>
-          <p class="text-[10px] text-zinc-400">Classifica Record Scalati e Ballati</p>
-        </div>
-        <button id="btnCloseRoomRecords" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
-      </div>
-      <div id="roomRecordsContainer" class="space-y-3 max-h-72 overflow-y-auto"></div>
-    </div>
-  </div>
-
   <script>
-    // PROBABILITA' TEORICA DI ZONG IN BASE AL NUMERO DI DADI LANCIATI
-    const ZONG_PROBABILITIES = {
-      1: 50.00,  // 3/6 esiti perdenti (2,3,4)
-      2: 44.44,  // 16/36 esiti perdenti (solo numeri 2,3,4,6)
-      3: 27.78,  // 60/216 esiti perdenti
-      4: 12.35,  // 160/1296 esiti perdenti
-      5: 7.72    // 600/7776 esiti perdenti
-    };
-
-    function getZongProbability(numDice) {
-      return ZONG_PROBABILITIES[numDice] || 0;
-    }
-
-    // CAPACITOR BACK BUTTON ANDROID
-    document.addEventListener('deviceready', () => {
-      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
-        window.Capacitor.Plugins.App.addListener('backButton', () => {
-          const modals = ['rulesModal', 'leaderboardModal', 'targetScoreModal', 'newGameModal', 'roomRecordsModal'];
-          let closedAny = false;
-          modals.forEach(id => {
-            const el = document.getElementById(id);
-            if (el && !el.classList.contains('hidden')) {
-              el.classList.add('hidden');
-              closedAny = true;
-            }
-          });
-          if (!closedAny) {
-            window.Capacitor.Plugins.App.exitApp();
-          }
-        });
-      }
-    });
-
+    // -------------------------------------------------------------
+    // FUNZIONE CASUALE CRITTOGRAFICAMENTE SICURA
+    // -------------------------------------------------------------
     function getRandomDiceRoll() {
       const array = new Uint32Array(1);
       window.crypto.getRandomValues(array);
       return (array[0] % 6) + 1;
     }
 
+    // -------------------------------------------------------------
+    // CONFIGURAZIONE SUPABASE PER LA SALA ONLINE
+    // -------------------------------------------------------------
     const SUPABASE_URL = 'https://ttajaifqzjpdfxvrvdnf.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0YWphaWZxempwZGZ4dnJ2ZG5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNzk1MjAsImV4cCI6MjEwNzc1NTUyMH0.VOd9PManWdsbykk7MLpvgBlrXAKmTxTOQqUV63Q1_J4';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -507,9 +503,44 @@
     let myPlayerId = 'p_' + Math.random().toString(36).substring(2, 9);
     let lastEventId = null;
 
+    // Fallback aptico per iOS Safari 17.4+ (non supporta navigator.vibrate):
+    let _hapticLabel = null;
+    let _lastIosTick = 0;
+    function iosTick() {
+      try {
+        const now = Date.now();
+        if (now - _lastIosTick < 60) return; // evita doppi tick ravvicinati
+        _lastIosTick = now;
+        if (!_hapticLabel) {
+          const input = document.createElement('input');
+          input.type = 'checkbox';
+          input.setAttribute('switch', '');
+          input.tabIndex = -1;
+          _hapticLabel = document.createElement('label');
+          _hapticLabel.setAttribute('aria-hidden', 'true');
+          _hapticLabel.style.display = 'none';
+          _hapticLabel.appendChild(input);
+          document.body.appendChild(_hapticLabel);
+        }
+        _hapticLabel.click();
+      } catch (e) {}
+    }
+
     function triggerHaptic(duration = 35) {
       try {
-        if (typeof navigator.vibrate === 'function') navigator.vibrate(duration);
+        if (typeof navigator.vibrate === 'function') {
+          navigator.vibrate(duration);
+          return;
+        }
+        if (Array.isArray(duration)) {
+          let t = 0;
+          duration.forEach((ms, i) => {
+            if (i % 2 === 0) setTimeout(iosTick, t);
+            t += ms;
+          });
+        } else {
+          iosTick();
+        }
       } catch (e) {}
     }
 
@@ -523,87 +554,126 @@
         if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
       }
       playClick() {
-        if (!this.enabled) return; this.init();
+        if (!this.enabled) return;
+        this.init();
         try {
-          const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-          osc.type = 'triangle'; osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(600, this.ctx.currentTime);
           osc.frequency.exponentialRampToValueAtTime(150, this.ctx.currentTime + 0.05);
           gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
           gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
-          osc.connect(gain); gain.connect(this.ctx.destination);
-          osc.start(); osc.stop(this.ctx.currentTime + 0.05);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.05);
         } catch (e) {}
       }
       playDiceRoll() {
-        if (!this.enabled) return; this.init();
+        if (!this.enabled) return;
+        this.init();
         try {
           for (let i = 0; i < 6; i++) {
             const time = this.ctx.currentTime + i * 0.07;
-            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-            osc.type = 'sine'; osc.frequency.setValueAtTime(180 + Math.random() * 220, time);
-            gain.gain.setValueAtTime(0.2, time); gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
-            osc.connect(gain); gain.connect(this.ctx.destination);
-            osc.start(time); osc.stop(time + 0.06);
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(180 + Math.random() * 220, time);
+            gain.gain.setValueAtTime(0.2, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(time);
+            osc.stop(time + 0.06);
           }
         } catch (e) {}
       }
       playBank() {
-        if (!this.enabled) return; this.init();
+        if (!this.enabled) return;
+        this.init();
         try {
           [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
             const time = this.ctx.currentTime + idx * 0.08;
-            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-            osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, time);
-            gain.gain.setValueAtTime(0.2, time); gain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
-            osc.connect(gain); gain.connect(this.ctx.destination);
-            osc.start(time); osc.stop(time + 0.2);
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, time);
+            gain.gain.setValueAtTime(0.2, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(time);
+            osc.stop(time + 0.2);
           });
         } catch (e) {}
       }
       playZong() {
-        if (!this.enabled) return; this.init();
+        if (!this.enabled) return;
+        this.init();
         try {
-          const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-          osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(300, this.ctx.currentTime);
           osc.frequency.linearRampToValueAtTime(50, this.ctx.currentTime + 0.5);
           gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
           gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
-          osc.connect(gain); gain.connect(this.ctx.destination);
-          osc.start(); osc.stop(this.ctx.currentTime + 0.52);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.52);
         } catch (e) {}
       }
       playVictory() {
-        if (!this.enabled) return; this.init();
+        if (!this.enabled) return;
+        this.init();
         try {
           [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
             const t = this.ctx.currentTime + i * 0.12;
-            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-            osc.type = 'sine'; osc.frequency.setValueAtTime(freq, t);
-            gain.gain.setValueAtTime(0.25, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
-            osc.connect(gain); gain.connect(this.ctx.destination);
-            osc.start(t); osc.stop(t + 0.27);
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, t);
+            gain.gain.setValueAtTime(0.25, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.27);
           });
         } catch (e) {}
       }
     }
     const sound = new SoundEngine();
-    window.addEventListener('pointerdown', () => sound.init(), { once: true });
 
     let TARGET_SCORE = 10000;
     const GameState = {
       targetScore: 10000,
-      numPlayers: 1, activePlayer: 1, 
-      playerIds: {}, playerNames: {}, scores: {},
-      recordsScalato: {}, // Record senza punti ereditati
-      recordsBallato: {}, // Record con punti ereditati
+      numPlayers: 1, 
+      activePlayer: 1, 
+      playerIds: {},   
+      playerNames: {},
+      scores: {},
+      records: {},
       hasEntered: {},
-      round: 1, phase: 'ready', isInheritedTurn: false,
+      zongCounts: {}, // Contatore dei Zong fatti da ciascun giocatore
+      totalRolls: {}, // Contatore dei lanci totali fatti da ciascun giocatore
+      round: 1,
+      phase: 'ready',
+      isInheritedTurn: false,
       dice: [
-        { value: 1, status: 'free' }, { value: 2, status: 'free' },
-        { value: 3, status: 'free' }, { value: 4, status: 'free' }, { value: 5, status: 'free' }
+        { value: 1, status: 'free' },
+        { value: 2, status: 'free' },
+        { value: 3, status: 'free' },
+        { value: 4, status: 'free' },
+        { value: 5, status: 'free' },
       ],
-      turnAccumulatedScore: 0, inheritedScore: 0, securedInSubTurn: false,
-      logs: [], lastEvent: null
+      turnAccumulatedScore: 0, 
+      inheritedScore: 0,       
+      securedInSubTurn: false,
+      logs: [],
+      lastEvent: null
     };
 
     function showQuickToast(type, playerName) {
@@ -627,11 +697,19 @@
       toastEl.classList.remove('hidden', 'toast-animate');
       void toastEl.offsetWidth;
       toastEl.classList.add('toast-animate');
-      setTimeout(() => { toastEl.classList.add('hidden'); }, 2800);
+
+      setTimeout(() => {
+        toastEl.classList.add('hidden');
+      }, 2800);
     }
 
-    function isMyTurn() { return GameState.playerIds[GameState.activePlayer] === myPlayerId; }
-    function getPlayerName(id) { return GameState.playerNames[id] || `Giocatore ${id}`; }
+    function isMyTurn() {
+      return GameState.playerIds[GameState.activePlayer] === myPlayerId;
+    }
+
+    function getPlayerName(id) {
+      return GameState.playerNames[id] || `Giocatore ${id}`;
+    }
 
     function getCounts(diceValues) {
       const counts = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0};
@@ -641,9 +719,12 @@
 
     function evaluateSelection(selectedValues) {
       if (!selectedValues || selectedValues.length === 0) return { score: 0, isValid: false, description: "" };
+
       const totalDice = selectedValues.length;
       const counts = getCounts(selectedValues);
-      let score = 0; let usedDiceCount = 0; const reasons = [];
+      let score = 0;
+      let usedDiceCount = 0;
+      const reasons = [];
 
       const bankedCount = GameState.dice.filter(d => d.status === 'banked').length;
       if (totalDice === 1 && selectedValues[0] === 6 && bankedCount === 4) {
@@ -652,20 +733,26 @@
 
       if (totalDice === 5) {
         const sorted = [...selectedValues].sort((a,b)=>a-b).join('');
-        if (sorted === "12345" || sorted === "23456") return { score: 1500, isValid: true, description: "Scala (1500 pt)" };
+        if (sorted === "12345" || sorted === "23456") {
+          return { score: 1500, isValid: true, description: "Scala (1500 pt)" };
+        }
       }
 
       for (let num = 1; num <= 6; num++) {
         if (counts[num] === 5) {
-          const pts = ((num === 1) ? 1000 : (num * 100)) * 4; 
+          const baseTris = (num === 1) ? 1000 : (num * 100);
+          const pts = baseTris * 4; 
           return { score: pts, isValid: true, description: `Cinquina di ${num} (${pts} pt)` };
         }
       }
 
       for (let num = 1; num <= 6; num++) {
         if (counts[num] >= 4) {
-          const pts = ((num === 1) ? 1000 : (num * 100)) * 2; 
-          score += pts; usedDiceCount += 4; counts[num] -= 4;
+          const baseTris = (num === 1) ? 1000 : (num * 100);
+          const pts = baseTris * 2; 
+          score += pts;
+          usedDiceCount += 4;
+          counts[num] -= 4;
           reasons.push(`Quaterna di ${num} (${pts} pt)`);
         }
       }
@@ -673,21 +760,38 @@
       for (let num = 1; num <= 6; num++) {
         if (counts[num] >= 3) {
           const pts = (num === 1) ? 1000 : (num * 100);
-          score += pts; usedDiceCount += 3; counts[num] -= 3;
+          score += pts;
+          usedDiceCount += 3;
+          counts[num] -= 3;
           reasons.push(`Tris di ${num} (${pts} pt)`);
         }
       }
 
-      if (counts[1] > 0) { const pts = counts[1] * 100; score += pts; usedDiceCount += counts[1]; reasons.push(`${counts[1]}x Uno (${pts} pt)`); }
-      if (counts[5] > 0) { const pts = counts[5] * 50; score += pts; usedDiceCount += counts[5]; reasons.push(`${counts[5]}x Cinque (${pts} pt)`); }
+      if (counts[1] > 0) {
+        const pts = counts[1] * 100;
+        score += pts;
+        usedDiceCount += counts[1];
+        reasons.push(`${counts[1]}x Uno (${pts} pt)`);
+      }
+      if (counts[5] > 0) {
+        const pts = counts[5] * 50;
+        score += pts;
+        usedDiceCount += counts[5];
+        reasons.push(`${counts[5]}x Cinque (${pts} pt)`);
+      }
 
       const isValid = (usedDiceCount === totalDice) && (score > 0);
-      return { score: isValid ? score : 0, isValid, description: isValid ? reasons.join(" + ") : "Dadi non validi selezionati" };
+      return {
+        score: isValid ? score : 0,
+        isValid: isValid,
+        description: isValid ? reasons.join(" + ") : "Dadi non validi selezionati"
+      };
     }
 
     function hasAnyScoringCombination(availableValues, activeBankedCount) {
       if (!availableValues || availableValues.length === 0) return false;
       if (availableValues.length === 1 && availableValues[0] === 6 && activeBankedCount === 4) return true;
+
       const counts = getCounts(availableValues);
       if (counts[1] > 0 || counts[5] > 0) return true;
       for (let n = 2; n <= 6; n++) { if (counts[n] >= 3) return true; }
@@ -703,36 +807,114 @@
       4: { x: -90, y: 0 }, 5: { x: 0, y: -90 }, 6: { x: 0, y: 180 }
     };
 
-    let cubeElements, diceContainers, actionButtons, inheritButtons, specialActions;
-    let btnRoll, btnRollText, btnBank, btnBankText, btnInherit, btnInheritText, btnResetRoll;
-    let btnNewGame, btnSound, btnRules, btnGotItRules, btnCloseRules, rulesModal;
-    let btnLeaderboard, btnCloseLeaderboard, leaderboardModal, leaderboardContainer, leaderboardTargetLabel;
-    let btnRoomRecords, btnCloseRoomRecords, roomRecordsModal, roomRecordsContainer;
-    let zongModal, winModal, winLeaderboardContainer, btnRestartWin, btnSplit5s;
-    let playersContainer, turnScoreTotalEl, pendingSelectionBadge, availableDiceCountEl;
-    let statusMessageEl, selectionPillEl, logContainer, roundCounterEl;
-    let roomModal, inputPlayerName, inputRoomCode, btnJoinRoom, roomBadge;
-    let containerTargetScore, inputTargetScore, newGameModal, playerSelectList, btnCancelNewGame, btnConfirmNewGame;
-    let btnTargetScoreHeader, btnTargetScoreMobile, targetScoreHeaderLabel, targetScoreModal, targetScoreInput, btnCancelTargetScore, btnSaveTargetScore;
+    const cubeElements = [0,1,2,3,4].map(i => document.getElementById(`cube-${i}`));
+    const diceContainers = document.querySelectorAll('.dice-container');
+    const actionButtons = document.getElementById('actionButtons');
+    const inheritButtons = document.getElementById('inheritButtons');
+    const specialActions = document.getElementById('specialActions');
+    const btnRoll = document.getElementById('btnRoll');
+    const btnRollText = document.getElementById('btnRollText');
+    const btnBank = document.getElementById('btnBank');
+    const btnBankText = document.getElementById('btnBankText');
+    const btnInherit = document.getElementById('btnInherit');
+    const btnInheritText = document.getElementById('btnInheritText');
+    const btnResetRoll = document.getElementById('btnResetRoll');
+    const btnNewGame = document.getElementById('btnNewGame');
+    const btnSound = document.getElementById('btnSound');
+    const btnRules = document.getElementById('btnRules');
+    const btnGotItRules = document.getElementById('btnGotItRules');
+    const btnCloseRules = document.getElementById('btnCloseRules');
+    const rulesModal = document.getElementById('rulesModal');
+    const btnLeaderboard = document.getElementById('btnLeaderboard');
+    const btnCloseLeaderboard = document.getElementById('btnCloseLeaderboard');
+    const leaderboardModal = document.getElementById('leaderboardModal');
+    const leaderboardContainer = document.getElementById('leaderboardContainer');
+    const leaderboardTargetLabel = document.getElementById('leaderboardTargetLabel');
+    const zongModal = document.getElementById('zongModal');
+    const winModal = document.getElementById('winModal');
+    const winLeaderboardContainer = document.getElementById('winLeaderboardContainer');
+    const btnRestartWin = document.getElementById('btnRestartWin');
+    const btnSplit5s = document.getElementById('btnSplit5s');
+    const playersContainer = document.getElementById('playersContainer');
+    const turnScoreTotalEl = document.getElementById('turnScoreTotal');
+    const pendingSelectionBadge = document.getElementById('pendingSelectionBadge');
+    const availableDiceCountEl = document.getElementById('availableDiceCount');
+    const statusMessageEl = document.getElementById('statusMessage');
+    const selectionPillEl = document.getElementById('selectionPill');
+    const logContainer = document.getElementById('logContainer');
+    const roundCounterEl = document.getElementById('roundCounter');
+
+    const roomModal = document.getElementById('roomModal');
+    const inputPlayerName = document.getElementById('inputPlayerName');
+    const inputRoomCode = document.getElementById('inputRoomCode');
+    const btnJoinRoom = document.getElementById('btnJoinRoom');
+    const roomBadge = document.getElementById('roomBadge');
+    const containerTargetScore = document.getElementById('containerTargetScore');
+    const inputTargetScore = document.getElementById('inputTargetScore');
+    const newGameModal = document.getElementById('newGameModal');
+    const playerSelectList = document.getElementById('playerSelectList');
+    const btnCancelNewGame = document.getElementById('btnCancelNewGame');
+    const btnConfirmNewGame = document.getElementById('btnConfirmNewGame');
+
+    const btnTargetScoreHeader = document.getElementById('btnTargetScoreHeader');
+    const btnTargetScoreMobile = document.getElementById('btnTargetScoreMobile');
+    const targetScoreHeaderLabel = document.getElementById('targetScoreHeaderLabel');
+    const targetScoreModal = document.getElementById('targetScoreModal');
+    const targetScoreInput = document.getElementById('targetScoreInput');
+    const btnCancelTargetScore = document.getElementById('btnCancelTargetScore');
+    const btnSaveTargetScore = document.getElementById('btnSaveTargetScore');
+
+    function checkRoomExists(code) {
+      return supabaseClient.from('rooms').select('*').eq('code', code).maybeSingle();
+    }
+
+    if (inputRoomCode) {
+      inputRoomCode.addEventListener('input', async () => {
+        const code = inputRoomCode.value.trim();
+        if (!code) {
+          containerTargetScore.classList.add('hidden');
+          return;
+        }
+        try {
+          const { data } = await checkRoomExists(code);
+          if (!data) {
+            containerTargetScore.classList.remove('hidden');
+          } else {
+            containerTargetScore.classList.add('hidden');
+          }
+        } catch(e) {
+          containerTargetScore.classList.add('hidden');
+        }
+      });
+    }
 
     function openTargetScoreModal() {
       triggerHaptic(20);
-      if (targetScoreInput) targetScoreInput.value = GameState.targetScore || TARGET_SCORE;
-      if (targetScoreModal) targetScoreModal.classList.remove('hidden');
+      if (targetScoreInput) {
+        targetScoreInput.value = GameState.targetScore || TARGET_SCORE;
+      }
+      if (targetScoreModal) {
+        targetScoreModal.classList.remove('hidden');
+      }
     }
 
     function closeTargetScoreModal() {
       triggerHaptic(20);
-      if (targetScoreModal) targetScoreModal.classList.add('hidden');
+      if (targetScoreModal) {
+        targetScoreModal.classList.add('hidden');
+      }
     }
 
     async function saveTargetScoreFromModal() {
       triggerHaptic(25);
       const val = parseInt(targetScoreInput.value);
-      if (isNaN(val) || val < 1000) { alert("Inserisci un punteggio valido (minimo 1000 punti)!"); return; }
+      if (isNaN(val) || val < 1000) {
+        alert("Inserisci un punteggio valido (minimo 1000 punti)!");
+        return;
+      }
       GameState.targetScore = val;
       TARGET_SCORE = val;
-      addLog(`🎯 Obiettivo stanza impostato a ${val.toLocaleString('it-IT')} pt`, true);
+      addLog(`🎯 Obiettivo della stanza impostato a ${val.toLocaleString('it-IT')} pt`, true);
       closeTargetScoreModal();
       updateUI();
       await saveStateToCloud();
@@ -778,14 +960,10 @@
       if(!playersContainer) return;
       playersContainer.innerHTML = '';
       const totalCards = GameState.numPlayers;
-      if (!GameState.recordsScalato) GameState.recordsScalato = {};
-      if (!GameState.recordsBallato) GameState.recordsBallato = {};
-
+      if (!GameState.records) GameState.records = {};
       for(let i=1; i<=totalCards; i++) {
         if (!GameState.scores[i]) GameState.scores[i] = 0;
-        if (GameState.recordsScalato[i] === undefined) GameState.recordsScalato[i] = 0;
-        if (GameState.recordsBallato[i] === undefined) GameState.recordsBallato[i] = 0;
-
+        if (GameState.records[i] === undefined) GameState.records[i] = 0;
         const card = document.createElement('div');
         card.id = `cardP${i}`;
         const playerColor = PLAYER_COLORS[(i - 1) % PLAYER_COLORS.length];
@@ -801,9 +979,9 @@
           <div class="w-full bg-zinc-800 rounded-full h-1 mt-1 overflow-hidden">
             <div id="barP${i}" class="h-full rounded-full transition-all duration-300" style="width: 0%; background-color: ${playerColor}"></div>
           </div>
-          <div class="mt-1 text-[8px] text-zinc-400 flex flex-col gap-0.5 border-t border-zinc-800/60 pt-1">
-            <div class="flex justify-between"><span>Scalato:</span><span class="font-bold text-amber-300" id="recScalatoP${i}">0 pt</span></div>
-            <div class="flex justify-between"><span>Ballato:</span><span class="font-bold text-blue-300" id="recBallatoP${i}">0 pt</span></div>
+          <div class="mt-1 text-[9px] text-zinc-400 flex items-center justify-between border-t border-zinc-800/60 pt-0.5">
+            <span>Record:</span>
+            <span class="font-bold text-amber-300/90" id="recordP${i}">0 pt</span>
           </div>
         `;
         playersContainer.appendChild(card);
@@ -811,54 +989,64 @@
     }
 
     function updateUI() {
-      if (newGameModal && !newGameModal.classList.contains('hidden')) newGameModal.classList.add('hidden');
+      if (newGameModal && !newGameModal.classList.contains('hidden')) {
+        newGameModal.classList.add('hidden');
+      }
 
       TARGET_SCORE = GameState.targetScore || TARGET_SCORE;
-      if (targetScoreHeaderLabel) targetScoreHeaderLabel.textContent = `${TARGET_SCORE.toLocaleString('it-IT')} pt`;
+      if (targetScoreHeaderLabel) {
+        targetScoreHeaderLabel.textContent = `${TARGET_SCORE.toLocaleString('it-IT')} pt`;
+      }
       renderLogs();
       initScoreboard();
-
-      for(let i=1; i<=GameState.numPlayers; i++) {
+      const totalCards = GameState.numPlayers;
+      if (!GameState.records) GameState.records = {};
+      for(let i=1; i<=totalCards; i++) {
         const cardEl = document.getElementById(`cardP${i}`);
         const labelEl = document.getElementById(`labelP${i}`);
         const scoreEl = document.getElementById(`scoreP${i}`);
         const barEl = document.getElementById(`barP${i}`);
         const subEl = document.getElementById(`subP${i}`);
-        const recScalatoEl = document.getElementById(`recScalatoP${i}`);
-        const recBallatoEl = document.getElementById(`recBallatoP${i}`);
-
+        const recordEl = document.getElementById(`recordP${i}`);
         if(!cardEl) continue;
         const playerColor = PLAYER_COLORS[(i - 1) % PLAYER_COLORS.length];
 
         let currentScore = GameState.scores[i] || 0;
+        let currentRecord = GameState.records[i] || 0;
         let isMe = GameState.playerIds[i] === myPlayerId;
         labelEl.innerHTML = (GameState.activePlayer === i ? '● ' : '') + getPlayerName(i) + (isMe ? ' (Tu)' : '');
+        labelEl.className = "text-[10px] font-bold uppercase truncate";
         labelEl.style.color = playerColor;
 
         if (!GameState.hasEntered[i]) {
-            subEl.innerHTML = '🔒 500pt'; subEl.className = "text-[9px] text-red-400/80 font-semibold";
+            subEl.innerHTML = '🔒 500pt';
+            subEl.className = "text-[9px] text-red-400/80 font-semibold";
         } else {
-            subEl.textContent = "pt"; subEl.className = "text-[9px] text-zinc-400";
+            subEl.textContent = "pt";
+            subEl.className = "text-[9px] text-zinc-400";
         }
 
         scoreEl.textContent = currentScore;
-        if (recScalatoEl) recScalatoEl.textContent = `${GameState.recordsScalato[i] || 0} pt`;
-        if (recBallatoEl) recBallatoEl.textContent = `${GameState.recordsBallato[i] || 0} pt`;
-
+        if (recordEl) recordEl.textContent = `${currentRecord} pt`;
         barEl.style.width = Math.min(100, (currentScore / TARGET_SCORE) * 100) + '%';
         cardEl.className = "relative p-2 rounded-xl border transition-all " + 
           (GameState.activePlayer === i ? "bg-zinc-900 border-amber-500/80 scale-[1.02] shadow" : "bg-zinc-900/40 border-zinc-800 opacity-60");
+        cardEl.style.borderColor = playerColor;
       }
 
       renderLeaderboard();
-      renderRoomRecords();
 
+      const selectedIndices = [];
       const selectedValues = [];
-      let freeCount = 0, bankedCount = 0, forcedFreeCount = 0;
+      let freeCount = 0;
+      let bankedCount = 0;
+      let forcedFreeCount = 0;
 
       GameState.dice.forEach((d, idx) => {
-        if (d.status === 'selected') selectedValues.push(d.value);
-        else if (d.status === 'free') freeCount++;
+        if (d.status === 'selected') {
+          selectedIndices.push(idx);
+          selectedValues.push(d.value);
+        } else if (d.status === 'free') freeCount++;
         else if (d.status === 'forced_free') forcedFreeCount++;
         else if (d.status === 'banked') bankedCount++;
       });
@@ -890,8 +1078,14 @@
         selectionPillEl.className = 'mt-3 text-xs font-normal text-zinc-400 z-10';
       }
 
-      let totalTurnPoints = (GameState.phase === 'inherit_choice') ? GameState.inheritedScore : GameState.turnAccumulatedScore + (evalResult.isValid ? evalResult.score : 0);
-      turnScoreTotalEl.textContent = totalTurnPoints;
+      let totalTurnPoints = 0;
+      if (GameState.phase === 'inherit_choice') {
+        turnScoreTotalEl.textContent = GameState.inheritedScore;
+      } else {
+        totalTurnPoints = GameState.turnAccumulatedScore + (evalResult.isValid ? evalResult.score : 0);
+        turnScoreTotalEl.textContent = totalTurnPoints;
+      }
+
       availableDiceCountEl.textContent = `${freeCount + forcedFreeCount + selectedValues.length} su 5`;
 
       const entryOverlay = document.getElementById('entryOverlay');
@@ -923,37 +1117,65 @@
         inheritButtons.classList.add('flex');
         let totalFree = GameState.dice.filter(d => d.status === 'free' || d.status === 'forced_free').length;
         btnInheritText.textContent = `Eredita ${GameState.inheritedScore} pt (${totalFree} dadi)`;
-        btnInherit.disabled = !turnAllowed; btnResetRoll.disabled = !turnAllowed;
+        
+        btnInherit.disabled = !turnAllowed;
+        btnResetRoll.disabled = !turnAllowed;
+        if (!turnAllowed) {
+          btnInherit.classList.add('opacity-50', 'cursor-not-allowed');
+          btnResetRoll.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+          btnInherit.classList.remove('opacity-50', 'cursor-not-allowed');
+          btnResetRoll.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
       } else {
         inheritButtons.classList.add('hidden');
+        inheritButtons.classList.remove('flex');
         actionButtons.classList.remove('hidden');
         actionButtons.classList.add('flex');
 
         if (!turnAllowed) {
-          btnRoll.disabled = true; btnRoll.classList.add('opacity-50', 'cursor-not-allowed');
+          btnRoll.disabled = true;
+          btnRoll.classList.add('opacity-50', 'cursor-not-allowed');
           btnRollText.textContent = `Turno di ${getPlayerName(GameState.activePlayer)}`;
-          btnBank.disabled = true; btnBank.classList.add('opacity-40', 'cursor-not-allowed');
+          btnBank.disabled = true;
+          btnBank.classList.add('opacity-40', 'cursor-not-allowed');
         } else {
           if (GameState.phase === 'ready') {
-            btnRoll.disabled = false; btnRoll.classList.remove('opacity-50', 'cursor-not-allowed');
+            btnRoll.disabled = false;
+            btnRoll.classList.remove('opacity-50', 'cursor-not-allowed');
             btnRollText.textContent = "Lancia i 5 Dadi";
-            btnBank.disabled = true; btnBank.classList.add('opacity-40', 'cursor-not-allowed');
+            btnBank.disabled = true;
+            btnBank.classList.add('opacity-40', 'cursor-not-allowed');
+          } else if (GameState.phase === 'rolling') {
+            btnRoll.disabled = true;
+            btnRoll.classList.add('opacity-50', 'cursor-not-allowed');
+            btnRollText.textContent = "Lancio...";
+            btnBank.disabled = true;
+            btnBank.classList.add('opacity-40', 'cursor-not-allowed');
           } else if (GameState.phase === 'rolled') {
             const canProceed = (evalResult.isValid && evalResult.score > 0) || evalResult.isMagicSix || GameState.securedInSubTurn;
             const remainingToRoll = freeCount + forcedFreeCount;
+            
             if (canProceed) {
-              btnRoll.disabled = false; btnRoll.classList.remove('opacity-50', 'cursor-not-allowed');
+              btnRoll.disabled = false;
+              btnRoll.classList.remove('opacity-50', 'cursor-not-allowed');
               btnRollText.textContent = remainingToRoll === 0 ? "HOT DICE! Rilancia 5 Dadi" : `Rilancia (${remainingToRoll})`;
+
               if (!GameState.hasEntered[GameState.activePlayer] && totalTurnPoints < 500) {
-                btnBank.disabled = true; btnBank.classList.add('opacity-40', 'cursor-not-allowed');
+                btnBank.disabled = true;
+                btnBank.classList.add('opacity-40', 'cursor-not-allowed');
+                btnBankText.textContent = `Apertura (${totalTurnPoints}/500)`;
               } else {
-                btnBank.disabled = false; btnBank.classList.remove('opacity-40', 'cursor-not-allowed');
+                btnBank.disabled = false;
+                btnBank.classList.remove('opacity-50', 'cursor-not-allowed');
                 btnBankText.textContent = "Incassa";
               }
             } else {
-              btnRoll.disabled = true; btnRoll.classList.add('opacity-50', 'cursor-not-allowed');
+              btnRoll.disabled = true;
+              btnRoll.classList.add('opacity-50', 'cursor-not-allowed');
               btnRollText.textContent = "Seleziona Punti";
-              btnBank.disabled = true; btnBank.classList.add('opacity-40', 'cursor-not-allowed');
+              btnBank.disabled = true;
+              btnBank.classList.add('opacity-40', 'cursor-not-allowed');
             }
           }
         }
@@ -963,10 +1185,22 @@
         const container = diceContainers[idx];
         const sub = container.querySelector('.dice-sub');
         container.className = 'dice-container transition-all duration-200';
-        if (d.status === 'selected') { container.classList.add('selected'); sub.textContent = 'Preso'; }
-        else if (d.status === 'banked') { container.classList.add('banked'); sub.textContent = 'Bloccato'; }
-        else if (d.status === 'forced_free') { container.classList.add('forced_free'); sub.textContent = 'Lancio Obbl.'; }
-        else { sub.textContent = 'In gioco'; }
+        if (d.status === 'selected') {
+          container.classList.add('selected');
+          sub.textContent = 'Preso';
+          sub.className = 'dice-sub text-[9px] text-center font-bold text-amber-400 mt-1 uppercase';
+        } else if (d.status === 'banked') {
+          container.classList.add('banked');
+          sub.textContent = 'Bloccato';
+          sub.className = 'dice-sub text-[9px] text-center font-bold text-blue-400 mt-1 uppercase';
+        } else if (d.status === 'forced_free') {
+          container.classList.add('forced_free');
+          sub.textContent = 'Lancio Obbl.';
+          sub.className = 'dice-sub text-[9px] text-center font-bold text-purple-400 mt-1 uppercase';
+        } else {
+          sub.textContent = 'In gioco';
+          sub.className = 'dice-sub text-[9px] text-center font-bold text-zinc-500 mt-1 uppercase';
+        }
         applyCubeRotation(cubeElements[idx], d.value);
       });
 
@@ -977,7 +1211,9 @@
 
     function renderLeaderboard() {
       if (!leaderboardContainer) return;
-      if (leaderboardTargetLabel) leaderboardTargetLabel.textContent = `Obiettivo Stanza: ${(GameState.targetScore || TARGET_SCORE).toLocaleString('it-IT')} pt`;
+      if (leaderboardTargetLabel) {
+        leaderboardTargetLabel.textContent = `Obiettivo Stanza: ${(GameState.targetScore || TARGET_SCORE).toLocaleString('it-IT')} pt`;
+      }
       leaderboardContainer.innerHTML = '';
       const list = [];
       for (let i = 1; i <= GameState.numPlayers; i++) {
@@ -999,37 +1235,6 @@
       });
     }
 
-    function renderRoomRecords() {
-      if (!roomRecordsContainer) return;
-      roomRecordsContainer.innerHTML = '';
-      const list = [];
-      for (let i = 1; i <= GameState.numPlayers; i++) {
-        list.push({
-          id: i,
-          scalato: (GameState.recordsScalato && GameState.recordsScalato[i]) ? GameState.recordsScalato[i] : 0,
-          ballato: (GameState.recordsBallato && GameState.recordsBallato[i]) ? GameState.recordsBallato[i] : 0,
-        });
-      }
-
-      list.sort((a, b) => Math.max(b.scalato, b.ballato) - Math.max(a.scalato, a.ballato));
-
-      list.forEach((p, idx) => {
-        const card = document.createElement('div');
-        card.className = "p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-between";
-        card.innerHTML = `
-          <div class="flex items-center gap-2.5">
-            <span class="w-6 h-6 rounded-full bg-zinc-800 text-yellow-400 flex items-center justify-center font-bold text-xs">${idx+1}</span>
-            <span class="text-xs font-bold text-zinc-100">${getPlayerName(p.id)}</span>
-          </div>
-          <div class="text-right space-y-0.5">
-            <div class="text-[11px] font-extrabold text-amber-300">Scalato: ${p.scalato} pt</div>
-            <div class="text-[11px] font-extrabold text-blue-400">Ballato: ${p.ballato} pt</div>
-          </div>
-        `;
-        roomRecordsContainer.appendChild(card);
-      });
-    }
-
     function applyCubeRotation(cubeEl, faceNumber) {
       const rot = faceRotations[faceNumber] || { x: 0, y: 0 };
       cubeEl.style.transform = `rotateX(${rot.x}deg) rotateY(${rot.y}deg)`;
@@ -1043,28 +1248,46 @@
     async function rollDice() {
       if (!isMyTurn() || GameState.phase === 'rolling') return;
 
+      // Incrementa il numero totale di lanci effettuati dal giocatore attivo
+      if (!GameState.totalRolls) GameState.totalRolls = {};
+      if (!GameState.totalRolls[GameState.activePlayer]) GameState.totalRolls[GameState.activePlayer] = 0;
+      GameState.totalRolls[GameState.activePlayer]++;
+
       if (GameState.phase === 'rolled') {
         const selectedIndices = [];
         const selectedValues = [];
         GameState.dice.forEach((d, i) => {
-          if (d.status === 'selected') { selectedIndices.push(i); selectedValues.push(d.value); }
+          if (d.status === 'selected') {
+            selectedIndices.push(i);
+            selectedValues.push(d.value);
+          }
         });
 
         if (selectedValues.length > 0) {
           const evalResult = evaluateSelection(selectedValues);
           if (!evalResult.isValid && !evalResult.isMagicSix) return;
+
           GameState.turnAccumulatedScore += evalResult.score;
+          if (evalResult.score > 0) addLog(`${getPlayerName(GameState.activePlayer)} accantona ${selectedValues.join(',')} (+${evalResult.score} pt)`);
+          else if (evalResult.isMagicSix) addLog(`✨ Sei Magico sbloccato!`, true);
+
           selectedIndices.forEach(i => { GameState.dice[i].status = 'banked'; });
         }
 
-        if (GameState.dice.filter(d => d.status === 'banked').length === 5) {
+        const bankedCount = GameState.dice.filter(d => d.status === 'banked').length;
+        if (bankedCount === 5) {
           sound.playVictory();
+          triggerHaptic(80);
+          addLog(`🔥 HOT DICE! Rilancia tutti i 5 dadi!`, true);
+          GameState.lastEvent = { id: Math.random(), type: 'hotdice', player: getPlayerName(GameState.activePlayer) };
           GameState.dice.forEach(d => d.status = 'free');
         }
       }
 
       GameState.phase = 'rolling';
+      GameState.securedInSubTurn = false;
       sound.playDiceRoll();
+      triggerHaptic(40);
       updateUI();
       await saveStateToCloud();
 
@@ -1084,6 +1307,8 @@
         });
       }
 
+      statusMessageEl.textContent = "Lancio...";
+
       setTimeout(async () => {
         const newlyRolledValues = [];
         indicesToRoll.forEach(idx => {
@@ -1099,41 +1324,51 @@
         const bankedCountNow = GameState.dice.filter(d => d.status === 'banked').length;
         const hasScore = hasAnyScoringCombination(newlyRolledValues, bankedCountNow);
 
-        const numRolled = indicesToRoll.length;
-        const zongProb = getZongProbability(numRolled);
-        const playerCurName = getPlayerName(GameState.activePlayer);
-
         if (!hasScore) {
-          await triggerZong(newlyRolledValues, numRolled, zongProb, playerCurName);
+          await triggerZong(newlyRolledValues);
         } else {
-          addLog(`${playerCurName} - Lancio (${numRolled} dadi, prob. Zong ${zongProb}%): [ ${newlyRolledValues.join('-')} ]`);
+          statusMessageEl.textContent = `Usciti: [ ${newlyRolledValues.join(', ')} ]`;
+          addLog(`Lancio: [ ${newlyRolledValues.join('-')} ]`);
           updateUI();
           await saveStateToCloud();
         }
       }, 700);
     }
 
-    async function triggerZong(rolledValues, numDice, zongProb, pName) {
+    async function triggerZong(rolledValues) {
       sound.playZong();
       triggerHaptic(250);
       GameState.turnAccumulatedScore = 0;
-      
-      const currentPlayerName = pName || getPlayerName(GameState.activePlayer);
-      addLog(`💥 ${currentPlayerName} fa ZONG! con ${numDice} dadi [ ${rolledValues.join('-')} ] (Prob. Zong: ${zongProb}%)`, false, true);
-      
-      const modalTextEl = document.getElementById('zongModalProbabilityText');
-      if (modalTextEl) {
-        modalTextEl.textContent = `${currentPlayerName} ha rischiato il ${zongProb}% ed è uscito ZONG! Turno perso.`;
-      }
 
-      GameState.lastEvent = { id: Math.random(), type: 'zong', player: currentPlayerName };
+      // Aggiorna i contatori per la percentuale di Zong
+      if (!GameState.zongCounts) GameState.zongCounts = {};
+      if (!GameState.zongCounts[GameState.activePlayer]) GameState.zongCounts[GameState.activePlayer] = 0;
+      GameState.zongCounts[GameState.activePlayer]++;
+
+      const totalR = GameState.totalRolls[GameState.activePlayer] || 1;
+      const totalZ = GameState.zongCounts[GameState.activePlayer];
+      const zongPercentage = ((totalZ / totalR) * 100).toFixed(1) + '%';
+
+      const currentPlayerName = getPlayerName(GameState.activePlayer);
+      addLog(`${currentPlayerName} ha fatto Zong, ${zongPercentage}`, false, true);
+
+      GameState.lastEvent = { id: Math.random(), type: 'zong', player: currentPlayerName, percentage: zongPercentage };
+      
+      // Aggiorna il testo del modale Zong includendo la percentuale
+      const zongTitleEl = document.getElementById('zongModalTitle');
+      const zongSubEl = document.getElementById('zongModalSub');
+      if (zongTitleEl) zongTitleEl.textContent = "Hai fatto ZONG";
+      if (zongSubEl) zongSubEl.textContent = `Percentuale Zong: ${zongPercentage} (Nessun punto valido, turno perso!)`;
+
       zongModal.classList.remove('hidden');
       await saveStateToCloud();
 
       setTimeout(async () => {
         zongModal.classList.add('hidden');
-        if (isMyTurn()) await endTurn();
-      }, 1800);
+        if (isMyTurn()) {
+          await endTurn();
+        }
+      }, 1500);
     }
 
     async function endTurn() {
@@ -1142,8 +1377,12 @@
       GameState.inheritedScore = 0;
       GameState.isInheritedTurn = false;
       GameState.dice.forEach(d => d.status = 'free');
+
       GameState.activePlayer++;
-      if (GameState.activePlayer > GameState.numPlayers) { GameState.activePlayer = 1; GameState.round++; }
+      if (GameState.activePlayer > GameState.numPlayers) {
+        GameState.activePlayer = 1;
+        GameState.round++;
+      }
       GameState.phase = 'ready';
       updateUI();
       await saveStateToCloud();
@@ -1151,8 +1390,11 @@
 
     async function bankPoints() {
       if (!isMyTurn() || GameState.phase !== 'rolled') return;
+
       const selectedValues = [];
-      GameState.dice.forEach((d) => { if (d.status === 'selected') selectedValues.push(d.value); });
+      GameState.dice.forEach((d) => {
+        if (d.status === 'selected') selectedValues.push(d.value);
+      });
 
       let finalTurnTotal = GameState.turnAccumulatedScore;
       if (selectedValues.length > 0) {
@@ -1160,47 +1402,46 @@
         if (!evalResult.isValid) return;
         finalTurnTotal += evalResult.score;
       }
+
       if (finalTurnTotal === 0) return;
 
       if (!GameState.hasEntered[GameState.activePlayer]) {
-        if (finalTurnTotal < 500) return;
+        if (finalTurnTotal < 500) return; 
         GameState.hasEntered[GameState.activePlayer] = true;
+        addLog(`🔓 ${getPlayerName(GameState.activePlayer)} ha aperto (500+ pt)!`, true);
       }
 
-      if (!GameState.recordsScalato) GameState.recordsScalato = {};
-      if (!GameState.recordsBallato) GameState.recordsBallato = {};
-
-      const playerIdx = GameState.activePlayer;
-      const pName = getPlayerName(playerIdx);
-
-      // Aggiornamento Record
-      if (GameState.isInheritedTurn) {
-        if (finalTurnTotal > (GameState.recordsBallato[playerIdx] || 0)) {
-          GameState.recordsBallato[playerIdx] = finalTurnTotal;
-          addLog(`💃 Nuovo Record Ballato per ${pName}: ${finalTurnTotal} pt!`, true);
-        }
-      } else {
-        if (finalTurnTotal > (GameState.recordsScalato[playerIdx] || 0)) {
-          GameState.recordsScalato[playerIdx] = finalTurnTotal;
-          addLog(`🧗 Nuovo Record Scalato per ${pName}: ${finalTurnTotal} pt!`, true);
-        }
+      if (!GameState.records) GameState.records = {};
+      const currentRecord = GameState.records[GameState.activePlayer] || 0;
+      if (!GameState.isInheritedTurn && finalTurnTotal > currentRecord) {
+        GameState.records[GameState.activePlayer] = finalTurnTotal;
+        addLog(`🏆 Nuovo record per ${getPlayerName(GameState.activePlayer)}: ${finalTurnTotal} pt!`, true);
       }
 
-      GameState.scores[playerIdx] += finalTurnTotal;
+      GameState.scores[GameState.activePlayer] += finalTurnTotal;
       sound.playBank();
-      
-      if (GameState.scores[playerIdx] >= TARGET_SCORE) {
-        triggerVictory(playerIdx, GameState.scores[playerIdx]);
+      triggerHaptic(60);
+      addLog(`🏦 ${getPlayerName(GameState.activePlayer)} incassa ${finalTurnTotal} pt!`, true);
+
+      if (GameState.scores[GameState.activePlayer] >= TARGET_SCORE) {
+        triggerVictory(GameState.activePlayer, GameState.scores[GameState.activePlayer]);
         await saveStateToCloud();
         return;
       }
 
       GameState.inheritedScore = finalTurnTotal;
       GameState.dice.forEach(d => { if (d.status === 'selected') d.status = 'banked'; });
-      if (GameState.dice.filter(d => d.status === 'free' || d.status === 'forced_free').length === 0) GameState.dice.forEach(d => d.status = 'free');
+      
+      let freeCount = GameState.dice.filter(d => d.status === 'free' || d.status === 'forced_free').length;
+      if (freeCount === 0) GameState.dice.forEach(d => d.status = 'free');
 
       GameState.activePlayer++;
-      if (GameState.activePlayer > GameState.numPlayers) { GameState.activePlayer = 1; GameState.round++; }
+      if (GameState.activePlayer > GameState.numPlayers) {
+        GameState.activePlayer = 1;
+        GameState.round++;
+      }
+
+      GameState.isInheritedTurn = false;
       GameState.phase = 'inherit_choice';
       updateUI();
       await saveStateToCloud();
@@ -1208,13 +1449,73 @@
 
     async function triggerVictory(player, finalScore) {
       sound.playVictory();
+      triggerHaptic([100, 50, 100, 50, 200]);
+      
+      const list = [];
+      for (let i = 1; i <= GameState.numPlayers; i++) {
+        list.push({ id: i, score: GameState.scores[i] || 0 });
+      }
+      list.sort((a, b) => b.score - a.score);
+
+      let myLocalIndex = -1;
+      for (let i = 1; i <= GameState.numPlayers; i++) {
+        if (GameState.playerIds[i] === myPlayerId) {
+          myLocalIndex = i;
+          break;
+        }
+      }
+
+      let myRank = 1;
+      list.forEach((p, idx) => {
+        if (p.id === myLocalIndex) {
+          myRank = idx + 1;
+        }
+      });
+
+      let titleText = "VITTORIA!";
+      let subtitleText = `${getPlayerName(player)} ha trionfato con ${finalScore} punti!`;
+
+      if (myLocalIndex !== -1) {
+        if (myRank === 1) {
+          titleText = "HAI VINTO!";
+          subtitleText = `Complimenti, sei arrivato 1° con ${finalScore} punti!`;
+        } else if (myRank === 2) {
+          titleText = "SEI ARRIVATO SECONDO!";
+          subtitleText = `Ottima partita! Secondo posto conquistato.`;
+        } else {
+          titleText = `SEI ARRIVATO ${myRank}°!`;
+          subtitleText = `Hai concluso la partita in ${myRank}° posizione.`;
+        }
+      }
+
+      document.getElementById('winnerTitle').textContent = titleText;
+      document.getElementById('winnerSubtitle').textContent = subtitleText;
+
+      if (winLeaderboardContainer) {
+        winLeaderboardContainer.innerHTML = '';
+        list.forEach((p, idx) => {
+          const row = document.createElement('div');
+          const isMe = GameState.playerIds[p.id] === myPlayerId;
+          row.className = `flex items-center justify-between p-2 rounded-xl border ${isMe ? 'bg-amber-500/10 border-amber-500/50' : 'bg-zinc-950 border-zinc-800'}`;
+          row.innerHTML = `
+            <div class="flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full flex items-center justify-center bg-zinc-800 text-xs font-bold">${idx + 1}</span>
+              <span class="text-xs font-bold ${isMe ? 'text-amber-400' : 'text-zinc-200'}">${getPlayerName(p.id)} ${isMe ? '(Tu)' : ''}</span>
+            </div>
+            <span class="text-xs font-black text-white">${p.score} pt</span>
+          `;
+          winLeaderboardContainer.appendChild(row);
+        });
+      }
+
       winModal.classList.remove('hidden');
     }
 
     async function onDiceClick(index) {
       if (!isMyTurn() || GameState.phase !== 'rolled') return;
       const d = GameState.dice[index];
-      if (d.status === 'banked' || d.status === 'forced_free') return;
+      if (d.status === 'banked' || d.status === 'forced_free') return; 
+
       sound.playClick();
       triggerHaptic(20);
       d.status = d.status === 'free' ? 'selected' : 'free';
@@ -1227,82 +1528,180 @@
       let firstFound = false;
       GameState.dice.forEach(d => {
         if (d.status === 'selected' && d.value === 5) {
-          if (!firstFound) { d.status = 'banked'; firstFound = true; }
-          else { d.status = 'forced_free'; }
+          if (!firstFound) {
+            d.status = 'banked'; 
+            firstFound = true;
+          } else {
+            d.status = 'forced_free'; 
+          }
         }
       });
+      
       if (firstFound) {
         GameState.turnAccumulatedScore += 100;
         GameState.securedInSubTurn = true;
         sound.playBank();
+        triggerHaptic(50);
+        addLog(`✂️ ${getPlayerName(GameState.activePlayer)} unisce due 5 (+100 pt)`, true);
         GameState.dice.forEach(d => { if (d.status === 'selected') d.status = 'free'; });
         updateUI();
         await saveStateToCloud();
       }
     }
 
-    window.onload = function () {
-      cubeElements = [0,1,2,3,4].map(i => document.getElementById(`cube-${i}`));
-      diceContainers = document.querySelectorAll('.dice-container');
-      actionButtons = document.getElementById('actionButtons');
-      inheritButtons = document.getElementById('inheritButtons');
-      specialActions = document.getElementById('specialActions');
-      btnRoll = document.getElementById('btnRoll');
-      btnRollText = document.getElementById('btnRollText');
-      btnBank = document.getElementById('btnBank');
-      btnBankText = document.getElementById('btnBankText');
-      btnInherit = document.getElementById('btnInherit');
-      btnInheritText = document.getElementById('btnInheritText');
-      btnResetRoll = document.getElementById('btnResetRoll');
-      btnNewGame = document.getElementById('btnNewGame');
-      btnSound = document.getElementById('btnSound');
-      btnRules = document.getElementById('btnRules');
-      btnCloseRules = document.getElementById('btnCloseRules');
-      rulesModal = document.getElementById('rulesModal');
-      btnLeaderboard = document.getElementById('btnLeaderboard');
-      btnCloseLeaderboard = document.getElementById('btnCloseLeaderboard');
-      leaderboardModal = document.getElementById('leaderboardModal');
-      leaderboardContainer = document.getElementById('leaderboardContainer');
-      leaderboardTargetLabel = document.getElementById('leaderboardTargetLabel');
+    async function startNewGame(selectedPlayerIndices) {
+      triggerHaptic(30);
       
-      btnRoomRecords = document.getElementById('btnRoomRecords');
-      btnCloseRoomRecords = document.getElementById('btnCloseRoomRecords');
-      roomRecordsModal = document.getElementById('roomRecordsModal');
-      roomRecordsContainer = document.getElementById('roomRecordsContainer');
+      const newPlayerIds = {};
+      const newPlayerNames = {};
+      const newScores = {};
+      const newRecords = {};
+      const newHasEntered = {};
+      const newZongCounts = {};
+      const newTotalRolls = {};
+      let newCount = 0;
 
-      zongModal = document.getElementById('zongModal');
-      winModal = document.getElementById('winModal');
-      winLeaderboardContainer = document.getElementById('winLeaderboardContainer');
-      btnRestartWin = document.getElementById('btnRestartWin');
-      btnSplit5s = document.getElementById('btnSplit5s');
-      playersContainer = document.getElementById('playersContainer');
-      turnScoreTotalEl = document.getElementById('turnScoreTotal');
-      pendingSelectionBadge = document.getElementById('pendingSelectionBadge');
-      availableDiceCountEl = document.getElementById('availableDiceCount');
-      statusMessageEl = document.getElementById('statusMessage');
-      selectionPillEl = document.getElementById('selectionPill');
-      logContainer = document.getElementById('logContainer');
-      roundCounterEl = document.getElementById('roundCounter');
-      roomModal = document.getElementById('roomModal');
-      inputPlayerName = document.getElementById('inputPlayerName');
-      inputRoomCode = document.getElementById('inputRoomCode');
-      btnJoinRoom = document.getElementById('btnJoinRoom');
-      roomBadge = document.getElementById('roomBadge');
-      containerTargetScore = document.getElementById('containerTargetScore');
-      inputTargetScore = document.getElementById('inputTargetScore');
-      newGameModal = document.getElementById('newGameModal');
-      playerSelectList = document.getElementById('playerSelectList');
-      btnCancelNewGame = document.getElementById('btnCancelNewGame');
-      btnConfirmNewGame = document.getElementById('btnConfirmNewGame');
+      selectedPlayerIndices.forEach(oldIdx => {
+        newCount++;
+        newPlayerIds[newCount] = GameState.playerIds[oldIdx];
+        newPlayerNames[newCount] = GameState.playerNames[oldIdx];
+        newScores[newCount] = 0;
+        newRecords[newCount] = (GameState.records && GameState.records[oldIdx]) ? GameState.records[oldIdx] : 0;
+        newHasEntered[newCount] = false;
+        newZongCounts[newCount] = 0;
+        newTotalRolls[newCount] = 0;
+      });
 
-      btnTargetScoreHeader = document.getElementById('btnTargetScoreHeader');
-      btnTargetScoreMobile = document.getElementById('btnTargetScoreMobile');
-      targetScoreHeaderLabel = document.getElementById('targetScoreHeaderLabel');
-      targetScoreModal = document.getElementById('targetScoreModal');
-      targetScoreInput = document.getElementById('targetScoreInput');
-      btnCancelTargetScore = document.getElementById('btnCancelTargetScore');
-      btnSaveTargetScore = document.getElementById('btnSaveTargetScore');
+      GameState.numPlayers = Math.max(1, newCount);
+      GameState.playerIds = newPlayerIds;
+      GameState.playerNames = newPlayerNames;
+      GameState.scores = newScores;
+      GameState.records = newRecords;
+      GameState.hasEntered = newHasEntered;
+      GameState.zongCounts = newZongCounts;
+      GameState.totalRolls = newTotalRolls;
+      GameState.turnAccumulatedScore = 0;
+      GameState.inheritedScore = 0;
+      GameState.isInheritedTurn = false;
+      GameState.activePlayer = 1;
+      GameState.round = 1;
+      GameState.phase = 'ready';
+      GameState.dice = [
+        { value: 1, status: 'free' }, { value: 2, status: 'free' }, { value: 3, status: 'free' },
+        { value: 4, status: 'free' }, { value: 5, status: 'free' },
+      ];
+      GameState.logs = [];
+      addLog(`Nuova partita avviata.`);
+      initScoreboard();
+      updateUI();
+      await saveStateToCloud();
+    }
 
+    // GESTIONE ACCESSO STANZA ONLINE
+    btnJoinRoom.addEventListener('click', async () => {
+      const name = inputPlayerName.value.trim();
+      roomCode = inputRoomCode.value.trim();
+      if (!name || !roomCode) { alert("Inserisci sia il nome che il codice stanza!"); return; }
+
+      triggerHaptic(25);
+
+      try {
+        let { data, error } = await supabaseClient.from('rooms').select('*').eq('code', roomCode).maybeSingle();
+
+        if (!data) {
+          const tScore = parseInt(inputTargetScore.value) || 10000;
+          GameState.targetScore = tScore;
+          TARGET_SCORE = tScore;
+          GameState.numPlayers = 1;
+          GameState.playerIds = { 1: myPlayerId };
+          GameState.playerNames = { 1: name };
+          GameState.scores = { 1: 0 };
+          GameState.records = { 1: 0 };
+          GameState.hasEntered = { 1: false };
+          GameState.zongCounts = { 1: 0 };
+          GameState.totalRolls = { 1: 0 };
+          GameState.activePlayer = 1;
+          GameState.logs = [{ text: "Nuova partita avviata.", highlight: false, isZong: false }];
+          
+          await supabaseClient.from('rooms').insert([{ code: roomCode, state: GameState }]);
+        } else {
+          Object.assign(GameState, data.state);
+          TARGET_SCORE = GameState.targetScore || 10000;
+          
+          let alreadyIn = false;
+          let nameExists = false;
+
+          for (let i = 1; i <= GameState.numPlayers; i++) {
+            if (GameState.playerIds[i] === myPlayerId) {
+              alreadyIn = true;
+            }
+            if (GameState.playerNames[i].toLowerCase() === name.toLowerCase()) {
+              nameExists = true;
+            }
+          }
+
+          if (!alreadyIn) {
+            if (nameExists) {
+              alert("Questo nome è già preso in questa stanza! Scegline un altro.");
+              return;
+            }
+
+            GameState.numPlayers++;
+            GameState.playerIds[GameState.numPlayers] = myPlayerId;
+            GameState.playerNames[GameState.numPlayers] = name;
+            GameState.scores[GameState.numPlayers] = 0;
+            if (!GameState.records) GameState.records = {};
+            GameState.records[GameState.numPlayers] = 0;
+            GameState.hasEntered[GameState.numPlayers] = false;
+            if (!GameState.zongCounts) GameState.zongCounts = {};
+            GameState.zongCounts[GameState.numPlayers] = 0;
+            if (!GameState.totalRolls) GameState.totalRolls = {};
+            GameState.totalRolls[GameState.numPlayers] = 0;
+            await supabaseClient.from('rooms').update({ state: GameState }).eq('code', roomCode);
+          }
+        }
+
+        roomModal.classList.add('hidden');
+        roomBadge.textContent = `Stanza: ${roomCode}`;
+
+        supabaseClient.channel('room-sync-' + roomCode)
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `code=eq.${roomCode}` }, payload => {
+            if (payload.new && payload.new.state) {
+              const newState = payload.new.state;
+              if (newState.lastEvent && newState.lastEvent.id !== lastEventId) {
+                lastEventId = newState.lastEvent.id;
+                if (!isMyTurn()) {
+                  showQuickToast(newState.lastEvent.type, newState.lastEvent.player);
+                }
+              }
+              Object.assign(GameState, newState);
+              
+              if (winModal && !winModal.classList.contains('hidden') === false) {
+                for (let i = 1; i <= GameState.numPlayers; i++) {
+                  if (GameState.scores[i] >= TARGET_SCORE) {
+                    if (winModal.classList.contains('hidden')) {
+                      triggerVictory(i, GameState.scores[i]);
+                    }
+                    break;
+                  }
+                }
+              }
+
+              initScoreboard();
+              updateUI();
+            }
+          })
+          .subscribe();
+
+        initScoreboard();
+        updateUI();
+      } catch (err) {
+        console.error(err);
+        alert("Errore di connessione a Supabase.");
+      }
+    });
+
+    window.onload = function () {
       GameState.dice.forEach((d, i) => applyCubeRotation(cubeElements[i], d.value));
       diceContainers.forEach((el, index) => el.addEventListener('click', () => onDiceClick(index)));
 
@@ -1312,36 +1711,81 @@
 
       btnInherit.addEventListener('click', async () => {
         if (!isMyTurn()) return;
-        triggerHaptic(20); sound.init();
+        triggerHaptic(20);
+        sound.init();
         GameState.turnAccumulatedScore = GameState.inheritedScore;
-        GameState.isInheritedTurn = true; GameState.phase = 'ready';
+        GameState.isInheritedTurn = true;
+        GameState.phase = 'ready';
         rollDice();
       });
 
       btnResetRoll.addEventListener('click', async () => {
         if (!isMyTurn()) return;
-        triggerHaptic(20); sound.init();
-        GameState.turnAccumulatedScore = 0; GameState.inheritedScore = 0;
-        GameState.isInheritedTurn = false; GameState.dice.forEach(d => d.status = 'free');
-        GameState.phase = 'ready'; rollDice();
+        triggerHaptic(20);
+        sound.init();
+        GameState.turnAccumulatedScore = 0;
+        GameState.inheritedScore = 0;
+        GameState.isInheritedTurn = false;
+        GameState.dice.forEach(d => d.status = 'free');
+        GameState.phase = 'ready';
+        rollDice();
       });
 
-      btnNewGame.addEventListener('click', () => { triggerHaptic(20); openNewGameModal(); });
-      btnCancelNewGame.addEventListener('click', () => { triggerHaptic(20); newGameModal.classList.add('hidden'); });
+      btnNewGame.addEventListener('click', () => {
+        triggerHaptic(20);
+        openNewGameModal();
+      });
+
+      btnCancelNewGame.addEventListener('click', () => {
+        triggerHaptic(20);
+        newGameModal.classList.add('hidden');
+      });
+
+      btnConfirmNewGame.addEventListener('click', () => {
+        triggerHaptic(20);
+        const checkboxes = playerSelectList.querySelectorAll('input[type="checkbox"]');
+        const selectedIndices = [];
+        checkboxes.forEach(cb => {
+          if (cb.checked) {
+            selectedIndices.push(parseInt(cb.getAttribute('data-player-index')));
+          }
+        });
+
+        if (selectedIndices.length === 0) {
+          alert("Devi selezionare almeno un giocatore!");
+          return;
+        }
+
+        newGameModal.classList.add('hidden');
+        startNewGame(selectedIndices);
+      });
+
+      // Gestione Preset Punteggio Massimo
+      const presetBtns = document.querySelectorAll('.preset-score-btn');
+      presetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          triggerHaptic(15);
+          const val = btn.getAttribute('data-value');
+          if (targetScoreInput) {
+            targetScoreInput.value = val;
+          }
+        });
+      });
 
       if (btnTargetScoreHeader) btnTargetScoreHeader.addEventListener('click', openTargetScoreModal);
       if (btnTargetScoreMobile) btnTargetScoreMobile.addEventListener('click', openTargetScoreModal);
       if (btnCancelTargetScore) btnCancelTargetScore.addEventListener('click', closeTargetScoreModal);
       if (btnSaveTargetScore) btnSaveTargetScore.addEventListener('click', saveTargetScoreFromModal);
 
-      if (btnRoomRecords) btnRoomRecords.addEventListener('click', () => { triggerHaptic(20); roomRecordsModal.classList.remove('hidden'); });
-      if (btnCloseRoomRecords) btnCloseRoomRecords.addEventListener('click', () => { triggerHaptic(20); roomRecordsModal.classList.add('hidden'); });
-
       btnLeaderboard.addEventListener('click', () => { triggerHaptic(20); leaderboardModal.classList.remove('hidden'); });
       btnCloseLeaderboard.addEventListener('click', () => { triggerHaptic(20); leaderboardModal.classList.add('hidden'); });
       btnRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.remove('hidden'); });
       btnCloseRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.add('hidden'); });
       btnGotItRules.addEventListener('click', () => { triggerHaptic(20); rulesModal.classList.add('hidden'); });
+      btnRestartWin.addEventListener('click', () => { 
+        winModal.classList.add('hidden'); 
+        openNewGameModal();
+      });
 
       btnSound.addEventListener('click', () => {
         triggerHaptic(20);
@@ -1350,73 +1794,6 @@
           ? '<i data-lucide="volume-2" class="w-4 h-4 text-zinc-300"></i>'
           : '<i data-lucide="volume-x" class="w-4 h-4 text-red-400"></i>';
         lucide.createIcons();
-      });
-
-      btnJoinRoom.addEventListener('click', async () => {
-        const name = inputPlayerName.value.trim();
-        roomCode = inputRoomCode.value.trim();
-        if (!name || !roomCode) { alert("Inserisci nome e codice stanza!"); return; }
-        triggerHaptic(25);
-
-        try {
-          let { data } = await supabaseClient.from('rooms').select('*').eq('code', roomCode).maybeSingle();
-          if (!data) {
-            const tScore = parseInt(inputTargetScore.value) || 10000;
-            GameState.targetScore = tScore; TARGET_SCORE = tScore;
-            GameState.numPlayers = 1;
-            GameState.playerIds = { 1: myPlayerId };
-            GameState.playerNames = { 1: name };
-            GameState.scores = { 1: 0 };
-            GameState.recordsScalato = { 1: 0 };
-            GameState.recordsBallato = { 1: 0 };
-            GameState.hasEntered = { 1: false };
-            GameState.activePlayer = 1;
-            GameState.logs = [{ text: "Nuova partita avviata.", highlight: false, isZong: false }];
-            await supabaseClient.from('rooms').insert([{ code: roomCode, state: GameState }]);
-          } else {
-            Object.assign(GameState, data.state);
-            TARGET_SCORE = GameState.targetScore || 10000;
-            let alreadyIn = false;
-            for (let i = 1; i <= GameState.numPlayers; i++) {
-              if (GameState.playerIds[i] === myPlayerId) alreadyIn = true;
-            }
-            if (!alreadyIn) {
-              GameState.numPlayers++;
-              GameState.playerIds[GameState.numPlayers] = myPlayerId;
-              GameState.playerNames[GameState.numPlayers] = name;
-              GameState.scores[GameState.numPlayers] = 0;
-              if (!GameState.recordsScalato) GameState.recordsScalato = {};
-              if (!GameState.recordsBallato) GameState.recordsBallato = {};
-              GameState.recordsScalato[GameState.numPlayers] = 0;
-              GameState.recordsBallato[GameState.numPlayers] = 0;
-              GameState.hasEntered[GameState.numPlayers] = false;
-              await supabaseClient.from('rooms').update({ state: GameState }).eq('code', roomCode);
-            }
-          }
-
-          roomModal.classList.add('hidden');
-          roomBadge.textContent = `Stanza: ${roomCode}`;
-
-          supabaseClient.channel('room-sync-' + roomCode)
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `code=eq.${roomCode}` }, payload => {
-              if (payload.new && payload.new.state) {
-                const newState = payload.new.state;
-                if (newState.lastEvent && newState.lastEvent.id !== lastEventId) {
-                  lastEventId = newState.lastEvent.id;
-                  if (!isMyTurn()) showQuickToast(newState.lastEvent.type, newState.lastEvent.player);
-                }
-                Object.assign(GameState, newState);
-                initScoreboard();
-                updateUI();
-              }
-            })
-            .subscribe();
-
-          initScoreboard();
-          updateUI();
-        } catch (err) {
-          alert("Errore di connessione a Supabase.");
-        }
       });
     };
   </script>
