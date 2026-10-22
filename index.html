@@ -1248,11 +1248,6 @@
     async function rollDice() {
       if (!isMyTurn() || GameState.phase === 'rolling') return;
 
-      // Incrementa il numero totale di lanci effettuati dal giocatore attivo
-      if (!GameState.totalRolls) GameState.totalRolls = {};
-      if (!GameState.totalRolls[GameState.activePlayer]) GameState.totalRolls[GameState.activePlayer] = 0;
-      GameState.totalRolls[GameState.activePlayer]++;
-
       if (GameState.phase === 'rolled') {
         const selectedIndices = [];
         const selectedValues = [];
@@ -1283,6 +1278,12 @@
           GameState.dice.forEach(d => d.status = 'free');
         }
       }
+
+      // Incrementa i lanci del giocatore attivo solo ora che il lancio avviene davvero
+      // (dopo la validazione della selezione, per non gonfiare il denominatore della % Zong)
+      if (!GameState.totalRolls) GameState.totalRolls = {};
+      if (!GameState.totalRolls[GameState.activePlayer]) GameState.totalRolls[GameState.activePlayer] = 0;
+      GameState.totalRolls[GameState.activePlayer]++;
 
       GameState.phase = 'rolling';
       GameState.securedInSubTurn = false;
