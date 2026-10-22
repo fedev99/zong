@@ -487,8 +487,13 @@
     // FUNZIONE CASUALE CRITTOGRAFICAMENTE SICURA
     // -------------------------------------------------------------
     function getRandomDiceRoll() {
+      // Rejection sampling: scarta i valori che causerebbero un bias del modulo
+      // (2^32 non è divisibile per 6), così ogni faccia ha probabilità esattamente 1/6.
       const array = new Uint32Array(1);
-      window.crypto.getRandomValues(array);
+      const limit = Math.floor(4294967296 / 6) * 6;
+      do {
+        window.crypto.getRandomValues(array);
+      } while (array[0] >= limit);
       return (array[0] % 6) + 1;
     }
 
